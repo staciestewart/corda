@@ -30,6 +30,7 @@ import net.corda.core.serialization.SerializationWhitelist
 import net.corda.core.serialization.SerializeAsToken
 import net.corda.core.serialization.SingletonSerializeAsToken
 import net.corda.core.utilities.*
+import net.corda.cryptoservice.CryptoService
 import net.corda.node.CordaClock
 import net.corda.node.VersionInfo
 import net.corda.node.cordapp.CordappLoader
@@ -50,8 +51,7 @@ import net.corda.node.services.config.shell.toShellConfig
 import net.corda.node.services.events.NodeSchedulerService
 import net.corda.node.services.events.ScheduledActivityObserver
 import net.corda.node.services.identity.PersistentIdentityService
-import net.corda.node.services.keys.KeyManagementServiceInternal
-import net.corda.node.services.keys.PersistentKeyManagementService
+import net.corda.node.services.keys.*
 import net.corda.node.services.messaging.DeduplicationHandler
 import net.corda.node.services.messaging.MessagingService
 import net.corda.node.services.network.NetworkMapClient
@@ -162,6 +162,7 @@ abstract class AbstractNode<S>(val configuration: NodeConfiguration,
     val networkMapClient: NetworkMapClient? = configuration.networkServices?.let { NetworkMapClient(it.networkMapURL, versionInfo) }
     val attachments = NodeAttachmentService(metricRegistry, cacheFactory, database).tokenize()
     val cordappProvider = CordappProviderImpl(cordappLoader, CordappConfigFileProvider(), attachments).tokenize()
+    val cryptoService = makeCryptoService()
     @Suppress("LeakingThis")
     val keyManagementService = makeKeyManagementService(identityService).tokenize()
     val servicesForResolution = ServicesForResolutionImpl(identityService, attachments, cordappProvider, transactionStorage)
@@ -336,6 +337,9 @@ abstract class AbstractNode<S>(val configuration: NodeConfiguration,
             attachments.start()
             cordappProvider.start(netParams.whitelistedContractImplementations)
             nodeProperties.start()
+            // Place the long term identity key in the KMS. Eventually, this is likely going to be separated again because
+            // the KMS is meant for derived temporary keys used in transactions, and we're not supposed to sign things with
+            // the identity key. But the infrastructure to make that easy isn't here yet.
             keyManagementService.start(keyPairs)
             val notaryService = makeNotaryService(myNotaryIdentity)
             installCordaServices(myNotaryIdentity)
@@ -790,11 +794,19 @@ abstract class AbstractNode<S>(val configuration: NodeConfiguration,
         }
     }
 
+    private fun makeCryptoService(): CryptoService? {
+        return when(configuration.cryptoServiceName) {
+            SupportedCryptoServices.BC_SIMPLE -> BCCryptoService(configuration)
+            null -> null
+        }
+    }
+
     protected open fun makeKeyManagementService(identityService: PersistentIdentityService): KeyManagementServiceInternal {
         // Place the long term identity key in the KMS. Eventually, this is likely going to be separated again because
         // the KMS is meant for derived temporary keys used in transactions, and we're not supposed to sign things with
         // the identity key. But the infrastructure to make that easy isn't here yet.
         return PersistentKeyManagementService(cacheFactory, identityService, database)
+        // return BasicHSMKeyManagementService(identityService, database, cryptoService)
     }
 
     private fun makeCoreNotaryService(notaryConfig: NotaryConfig, myNotaryIdentity: PartyAndCertificate?): NotaryService {
@@ -847,6 +859,9 @@ abstract class AbstractNode<S>(val configuration: NodeConfiguration,
                                                  networkParameters: NetworkParameters)
 
     private fun obtainIdentity(notaryConfig: NotaryConfig?): Pair<PartyAndCertificate, KeyPair> {
+        if (configuration.cryptoServiceName != null) {
+
+        }
         val keyStore = configuration.signingCertificateStore.get()
 
         val (id, singleName) = if (notaryConfig == null || !notaryConfig.isClusterConfig) {

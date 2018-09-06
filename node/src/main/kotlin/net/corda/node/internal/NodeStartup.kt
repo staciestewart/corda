@@ -238,7 +238,7 @@ open class NodeStartup : CordaCliWrapper("corda", "Runs a Corda Node") {
             return
         }
         if (cmdLineOptions.justGenerateNodeInfo) {
-            // Perform the minimum required start-up logic to be able to write a nodeInfo to disk
+            // Perform the minimum required start-up logic to be able to write a nodeInfo to disk.
             node.generateAndSaveNodeInfo()
             return
         }

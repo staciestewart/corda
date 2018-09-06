@@ -197,6 +197,12 @@ object Crypto {
             + signatureSchemeMap.values.map { Pair(it.signatureOID, it) })
             .toMap()
 
+    /**
+     * Map of supported digital signature schemes associated by [SignatureScheme.schemeNumberID].
+     * SchemeNumberID is the scheme identifier attached to [SignatureMetadata].
+     */
+    private val signatureSchemeNumberIDMap: Map<Int, SignatureScheme> = Crypto.supportedSignatureSchemes().associateBy { it.schemeNumberID }
+
     @JvmStatic
     fun supportedSignatureSchemes(): List<SignatureScheme> = ArrayList(signatureSchemeMap.values)
 
@@ -220,6 +226,13 @@ object Crypto {
     fun findSignatureScheme(algorithm: AlgorithmIdentifier): SignatureScheme {
         return algorithmMap[normaliseAlgorithmIdentifier(algorithm)]
                 ?: throw IllegalArgumentException("Unrecognised algorithm: ${algorithm.algorithm.id}")
+    }
+
+    /** Find [SignatureScheme] by schemeNumberID. */
+    @JvmStatic
+    fun findSignatureScheme(schemeNumberID: Int): SignatureScheme {
+        return signatureSchemeNumberIDMap[schemeNumberID]
+                ?: throw IllegalArgumentException("Unsupported key/algorithm for schemeNumberID: $schemeNumberID")
     }
 
     /**

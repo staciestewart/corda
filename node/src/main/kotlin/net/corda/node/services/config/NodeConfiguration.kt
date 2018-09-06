@@ -10,6 +10,7 @@ import net.corda.core.utilities.NetworkHostAndPort
 import net.corda.core.utilities.loggerFor
 import net.corda.core.utilities.seconds
 import net.corda.node.services.config.rpc.NodeRpcOptions
+import net.corda.node.services.keys.SupportedCryptoServices
 import net.corda.nodeapi.BrokerRpcSslOptions
 import net.corda.nodeapi.internal.config.FileBasedCertificateStoreSupplier
 import net.corda.nodeapi.internal.config.SslConfiguration
@@ -81,6 +82,11 @@ interface NodeConfiguration {
     val p2pSslOptions: MutualSslConfiguration
 
     val cordappDirectories: List<Path>
+
+    // TODO At the moment this is just an identifier for the desired CryptoService engine. Consider using a classname to
+    //      to allow for pluggable implementations.
+    val cryptoServiceName: SupportedCryptoServices?
+    val cryptoServiceConf: String? // Location for the cryptoService conf file.
 
     fun validate(): List<String>
 
@@ -230,11 +236,13 @@ data class NodeConfigurationImpl(
         override val flowMonitorPeriodMillis: Duration = DEFAULT_FLOW_MONITOR_PERIOD_MILLIS,
         override val flowMonitorSuspensionLoggingThresholdMillis: Duration = DEFAULT_FLOW_MONITOR_SUSPENSION_LOGGING_THRESHOLD_MILLIS,
         override val cordappDirectories: List<Path> = listOf(baseDirectory / CORDAPPS_DIR_NAME_DEFAULT),
-        override val jmxReporterType: JmxReporterType? = JmxReporterType.JOLOKIA
+        override val jmxReporterType: JmxReporterType? = JmxReporterType.JOLOKIA,
+        override val cryptoServiceName: SupportedCryptoServices? = null,
+        override val cryptoServiceConf: String? = null
 ) : NodeConfiguration {
     companion object {
         private val logger = loggerFor<NodeConfigurationImpl>()
-
+        // private val supportedCryptoServiceNames = setOf("BC", "UTIMACO", "GEMALTO-LUNA", "AZURE-KEY-VAULT")
     }
 
     private val actualRpcSettings: NodeRpcSettings
@@ -283,6 +291,17 @@ data class NodeConfigurationImpl(
         return errors
     }
 
+    private fun validateCryptoService(): List<String> {
+        val errors = mutableListOf<String>()
+        if (cryptoServiceName != null) {
+            errors += "cryptoServiceName $cryptoServiceName is not supported"
+        }
+        if (cryptoServiceName == null && cryptoServiceConf != null) {
+            errors += "cryptoServiceName is null, but cryptoServiceConf is set to $cryptoServiceConf"
+        }
+        return errors
+    }
+
     override fun validate(): List<String> {
         val errors = mutableListOf<String>()
         errors += validateDevModeOptions()
@@ -295,6 +314,7 @@ data class NodeConfigurationImpl(
         errors += validateTlsCertCrlConfig()
         errors += validateNetworkServices()
         errors += validateH2Settings()
+        errors += validateCryptoService()
         return errors
     }
 

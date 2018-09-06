@@ -7,6 +7,7 @@ import java.nio.file.Path
 import java.security.KeyPair
 import java.security.KeyStore
 import java.security.PrivateKey
+import java.security.PublicKey
 import java.security.cert.X509Certificate
 
 /**
@@ -55,8 +56,12 @@ class X509KeyStore private constructor(val internal: KeyStore, private val store
 
     fun getCertificateAndKeyPair(alias: String, keyPassword: String = storePassword): CertificateAndKeyPair {
         val cert = getCertificate(alias)
-        val publicKey = Crypto.toSupportedPublicKey(cert.publicKey)
+        val publicKey = getPublicKey(alias)
         return CertificateAndKeyPair(cert, KeyPair(publicKey, getPrivateKey(alias, keyPassword)))
+    }
+
+    fun getPublicKey(alias: String, keyPassword: String = storePassword): PublicKey {
+        return Crypto.toSupportedPublicKey(getCertificate(alias).publicKey)
     }
 
     fun getPrivateKey(alias: String, keyPassword: String = storePassword): PrivateKey {
