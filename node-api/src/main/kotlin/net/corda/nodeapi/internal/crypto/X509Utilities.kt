@@ -356,7 +356,7 @@ object X509Utilities {
 val CertRole.certificateType: CertificateType get() = CertificateType.values().first { it.role == this }
 
 /**
- * Convert a [X509Certificate] into Bouncycastle's [X509CertificateHolder].
+ * Convert a [X509Certificate] into BouncyCastle's [X509CertificateHolder].
  *
  * NOTE: To avoid unnecessary copying use [X509Certificate] where possible.
  */
@@ -376,7 +376,7 @@ val Certificate.x509: X509Certificate get() = requireNotNull(this as? X509Certif
 val Array<Certificate>.x509: List<X509Certificate> get() = map { it.x509 }
 
 /**
- * Validates the signature of the CSR
+ * Validates the signature of the CSR.
  */
 fun PKCS10CertificationRequest.isSignatureValid(): Boolean {
     return this.isSignatureValid(JcaContentVerifierProviderBuilder().build(this.subjectPublicKeyInfo))

@@ -207,7 +207,7 @@ open class NetworkRegistrationHelper(private val certificatesDirectory: Path,
     }
 
     /**
-     * Submit Certificate Signing Request to Certificate signing service if request ID not found in file system
+     * Submit Certificate Signing Request to Certificate signing service if request ID not found in file system.
      * New request ID will be stored in requestId.txt
      * @param keyPair Public Private key pair generated for SSL certification.
      * @return Request ID return from the server.

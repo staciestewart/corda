@@ -1,14 +1,25 @@
-package net.corda.node.services.keys
+package net.corda.node.services.keys.cryptoServices
 
 import net.corda.core.crypto.Crypto
+import net.corda.core.crypto.newSecureRandom
 import net.corda.cryptoservice.CryptoService
 import net.corda.node.services.config.NodeConfiguration
+import net.corda.nodeapi.internal.crypto.ContentSignerBuilder
 import net.corda.nodeapi.internal.crypto.X509Utilities
+import org.bouncycastle.operator.ContentSigner
 import java.security.PublicKey
 
-class BCCryptoService(private val nodeConf: NodeConfiguration) : CryptoService {
+/**
+ * Basic implementation of a [CryptoService] that uses BouncyCastle for cryptographic operations
+ * and a Java KeyStore to store private keys.
+ */
 
-    private val keystore = nodeConf.signingCertificateStore.get().value // TODO check if keystore exists.
+internal class BCCryptoService(private val nodeConf: NodeConfiguration) : CryptoService {
+
+    // TODO check if keystore exists.
+    // TODO make it work with nodeConf.cryptoServiceConf (if it exists). I.e., read the signingCertificateStore
+    //      keystore file name from there.
+    private val keystore = nodeConf.signingCertificateStore.get().value
 
     override fun generateKeyPair(alias: String, schemeNumberID: String): PublicKey {
         val keyPair = Crypto.generateKeyPair(Crypto.findSignatureScheme(schemeNumberID))
@@ -28,5 +39,11 @@ class BCCryptoService(private val nodeConf: NodeConfiguration) : CryptoService {
 
     override fun sign(alias: String, data: ByteArray): ByteArray {
         return Crypto.doSign(keystore.getPrivateKey(alias), data)
+    }
+
+    override fun signer(alias: String): ContentSigner {
+        val privateKey = keystore.getPrivateKey(alias)
+        val signatureScheme = Crypto.findSignatureScheme(privateKey)
+        return ContentSignerBuilder.build(signatureScheme, privateKey, Crypto.findProvider(signatureScheme.providerName), newSecureRandom())
     }
 }

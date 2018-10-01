@@ -1,4 +1,4 @@
-package net.corda.node.services.keys
+package net.corda.node.services.keys.cryptoServices
 
 enum class SupportedCryptoServices {
     BC_SIMPLE // BouncyCastle using Java KeyStores.

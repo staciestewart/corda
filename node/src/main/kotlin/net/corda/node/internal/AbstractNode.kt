@@ -52,6 +52,8 @@ import net.corda.node.services.events.NodeSchedulerService
 import net.corda.node.services.events.ScheduledActivityObserver
 import net.corda.node.services.identity.PersistentIdentityService
 import net.corda.node.services.keys.*
+import net.corda.node.services.keys.cryptoServices.BCCryptoService
+import net.corda.node.services.keys.cryptoServices.SupportedCryptoServices
 import net.corda.node.services.messaging.DeduplicationHandler
 import net.corda.node.services.messaging.MessagingService
 import net.corda.node.services.network.NetworkMapClient
