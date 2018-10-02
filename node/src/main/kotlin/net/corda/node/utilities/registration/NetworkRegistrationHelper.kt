@@ -93,25 +93,11 @@ open class NetworkRegistrationHelper(private val certificatesDirectory: Path,
 
         val keyPair = nodeKeyStore.loadOrCreateKeyPair(SELF_SIGNED_PRIVATE_KEY, privateKeyPassword)
 
-        val requestId = try {
-            submitOrResumeCertificateSigningRequest(keyPair)
-        } catch (e: Exception) {
-            if (e is ConnectException || e is ServiceUnavailableException || e is IOException) {
-                throw NodeRegistrationException(e)
-            }
-            throw e
-        }
+        val requestId = submitOrResumeCertificateSigningRequest(keyPair)
 
-        val certificates = try {
-            pollServerForCertificates(requestId)
-        } catch (certificateRequestException: CertificateRequestException) {
-            System.err.println(certificateRequestException.message)
-            System.err.println("Please make sure the details in configuration file are correct and try again.")
-            System.err.println("Corda node will now terminate.")
-            requestIdStore.deleteIfExists()
-            throw certificateRequestException
-        }
+        val certificates = pollServerForCertificates(requestId)
         validateCertificates(keyPair.public, certificates)
+
         storePrivateKeyWithCertificates(nodeKeyStore, keyPair, certificates, keyAlias, privateKeyPassword)
         onSuccess(keyPair, certificates, tlsCrlIssuerCert?.subjectX500Principal?.toX500Name())
         // All done, clean up temp files.
@@ -185,24 +171,32 @@ open class NetworkRegistrationHelper(private val certificatesDirectory: Path,
      * @return List of certificate chain.
      */
     private fun pollServerForCertificates(requestId: String): List<X509Certificate> {
-        println("Start polling server for certificate signing approval.")
-        // Poll server to download the signed certificate once request has been approved.
-        var idlePeriodDuration: Duration? = null
-        while (true) {
-            try {
-                val (pollInterval, certificates) = certService.retrieveCertificates(requestId)
-                if (certificates != null) {
-                    return certificates
-                }
-                Thread.sleep(pollInterval.toMillis())
-            } catch (e: ServiceUnavailableException) {
-                idlePeriodDuration = nextIdleDuration(idlePeriodDuration)
-                if (idlePeriodDuration != null) {
-                    Thread.sleep(idlePeriodDuration.toMillis())
-                } else {
-                    throw NodeRegistrationException(e)
+        try {
+            println("Start polling server for certificate signing approval.")
+            // Poll server to download the signed certificate once request has been approved.
+            var idlePeriodDuration: Duration? = null
+            while (true) {
+                try {
+                    val (pollInterval, certificates) = certService.retrieveCertificates(requestId)
+                    if (certificates != null) {
+                        return certificates
+                    }
+                    Thread.sleep(pollInterval.toMillis())
+                } catch (e: ServiceUnavailableException) {
+                    idlePeriodDuration = nextIdleDuration(idlePeriodDuration)
+                    if (idlePeriodDuration != null) {
+                        Thread.sleep(idlePeriodDuration.toMillis())
+                    } else {
+                        throw NodeRegistrationException(e)
+                    }
                 }
             }
+        } catch (certificateRequestException: CertificateRequestException) {
+            System.err.println(certificateRequestException.message)
+            System.err.println("Please make sure the details in configuration file are correct and try again.")
+            System.err.println("Corda node will now terminate.")
+            requestIdStore.deleteIfExists()
+            throw certificateRequestException
         }
     }
 
@@ -213,32 +207,39 @@ open class NetworkRegistrationHelper(private val certificatesDirectory: Path,
      * @return Request ID return from the server.
      */
     private fun submitOrResumeCertificateSigningRequest(keyPair: KeyPair): String {
-        // Retrieve request id from file if exists, else post a request to server.
-        return if (!requestIdStore.exists()) {
-            val request = X509Utilities.createCertificateSigningRequest(myLegalName.x500Principal, emailAddress, keyPair, certRole)
-            val writer = StringWriter()
-            JcaPEMWriter(writer).use {
-                it.writeObject(PemObject("CERTIFICATE REQUEST", request.encoded))
+        try {
+            // Retrieve request id from file if exists, else post a request to server.
+            return if (!requestIdStore.exists()) {
+                val request = X509Utilities.createCertificateSigningRequest(myLegalName.x500Principal, emailAddress, keyPair, certRole)
+                val writer = StringWriter()
+                JcaPEMWriter(writer).use {
+                    it.writeObject(PemObject("CERTIFICATE REQUEST", request.encoded))
+                }
+                println("Certificate signing request with the following information will be submitted to the Corda certificate signing server.")
+                println()
+                println("Legal Name: $myLegalName")
+                println("Email: $emailAddress")
+                println()
+                println("Public Key: ${keyPair.public}")
+                println()
+                println("$writer")
+                // Post request to signing server via http.
+                println("Submitting certificate signing request to Corda certificate signing server.")
+                val requestId = certService.submitRequest(request)
+                // Persists request ID to file in case of node shutdown.
+                requestIdStore.writeLines(listOf(requestId))
+                println("Successfully submitted request to Corda certificate signing server, request ID: $requestId.")
+                requestId
+            } else {
+                val requestId = requestIdStore.readLines { it.findFirst().get() }
+                println("Resuming from previous certificate signing request, request ID: $requestId.")
+                requestId
             }
-            println("Certificate signing request with the following information will be submitted to the Corda certificate signing server.")
-            println()
-            println("Legal Name: $myLegalName")
-            println("Email: $emailAddress")
-            println()
-            println("Public Key: ${keyPair.public}")
-            println()
-            println("$writer")
-            // Post request to signing server via http.
-            println("Submitting certificate signing request to Corda certificate signing server.")
-            val requestId = certService.submitRequest(request)
-            // Persists request ID to file in case of node shutdown.
-            requestIdStore.writeLines(listOf(requestId))
-            println("Successfully submitted request to Corda certificate signing server, request ID: $requestId.")
-            requestId
-        } else {
-            val requestId = requestIdStore.readLines { it.findFirst().get() }
-            println("Resuming from previous certificate signing request, request ID: $requestId.")
-            requestId
+        } catch (e: Exception) {
+            if (e is ConnectException || e is ServiceUnavailableException || e is IOException) {
+                throw NodeRegistrationException(e)
+            }
+            throw e
         }
     }
 
