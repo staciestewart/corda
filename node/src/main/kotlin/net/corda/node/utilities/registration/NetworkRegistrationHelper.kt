@@ -1,6 +1,7 @@
 package net.corda.node.utilities.registration
 
 import net.corda.core.crypto.Crypto
+import net.corda.core.crypto.newSecureRandom
 import net.corda.core.identity.CordaX500Name
 import net.corda.core.internal.*
 import net.corda.core.utilities.contextLogger
@@ -9,6 +10,7 @@ import net.corda.node.services.config.NodeConfiguration
 import net.corda.nodeapi.internal.config.CertificateStore
 import net.corda.nodeapi.internal.config.CertificateStoreSupplier
 import net.corda.nodeapi.internal.crypto.CertificateType
+import net.corda.nodeapi.internal.crypto.ContentSignerBuilder
 import net.corda.nodeapi.internal.crypto.X509KeyStore
 import net.corda.nodeapi.internal.crypto.X509Utilities
 import net.corda.nodeapi.internal.crypto.X509Utilities.CORDA_CLIENT_CA
@@ -16,6 +18,7 @@ import net.corda.nodeapi.internal.crypto.X509Utilities.CORDA_CLIENT_TLS
 import net.corda.nodeapi.internal.crypto.X509Utilities.CORDA_ROOT_CA
 import org.bouncycastle.asn1.x500.X500Name
 import org.bouncycastle.openssl.jcajce.JcaPEMWriter
+import org.bouncycastle.operator.ContentSigner
 import org.bouncycastle.util.io.pem.PemObject
 import java.io.IOException
 import java.io.StringWriter
@@ -88,7 +91,9 @@ open class NetworkRegistrationHelper(private val certificatesDirectory: Path,
 
         val keyPair = nodeKeyStore.loadOrCreateKeyPair(SELF_SIGNED_PRIVATE_KEY, privateKeyPassword)
 
-        val requestId = submitOrResumeCertificateSigningRequest(keyPair)
+        val signatureScheme = Crypto.findSignatureScheme(keyPair.public)
+        val contentSigner = ContentSignerBuilder.build(signatureScheme, keyPair.private, Crypto.findProvider(signatureScheme.providerName), newSecureRandom())
+        val requestId = submitOrResumeCertificateSigningRequest(keyPair.public, contentSigner)
 
         val certificates = pollServerForCertificates(requestId)
         validateCertificates(keyPair.public, certificates)
@@ -209,14 +214,15 @@ open class NetworkRegistrationHelper(private val certificatesDirectory: Path,
     /**
      * Submit Certificate Signing Request to Certificate signing service if request ID not found in file system.
      * New request ID will be stored in requestId.txt
-     * @param keyPair Public Private key pair generated for SSL certification.
+     * @param publicKey public key for which we need a certificate.
+     * @param contentSigner the [ContentSigner] that will sign the CSR.
      * @return Request ID return from the server.
      */
-    private fun submitOrResumeCertificateSigningRequest(keyPair: KeyPair): String {
+    private fun submitOrResumeCertificateSigningRequest(publicKey: PublicKey, contentSigner: ContentSigner): String {
         try {
             // Retrieve request id from file if exists, else post a request to server.
             return if (!requestIdStore.exists()) {
-                val request = X509Utilities.createCertificateSigningRequest(myLegalName.x500Principal, emailAddress, keyPair, certRole)
+                val request = X509Utilities.createCertificateSigningRequest(myLegalName.x500Principal, emailAddress, publicKey, contentSigner, certRole)
                 val writer = StringWriter()
                 JcaPEMWriter(writer).use {
                     it.writeObject(PemObject("CERTIFICATE REQUEST", request.encoded))
@@ -226,7 +232,7 @@ open class NetworkRegistrationHelper(private val certificatesDirectory: Path,
                 println("Legal Name: $myLegalName")
                 println("Email: $emailAddress")
                 println()
-                println("Public Key: ${keyPair.public}")
+                println("Public Key: ${publicKey}")
                 println()
                 println("$writer")
                 // Post request to signing server via http.
