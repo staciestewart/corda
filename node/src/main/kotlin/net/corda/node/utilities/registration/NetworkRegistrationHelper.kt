@@ -83,13 +83,8 @@ open class NetworkRegistrationHelper(private val certificatesDirectory: Path,
         }
         // TODO: Use different password for private key.
         val privateKeyPassword = nodeKeyStore.password
-        val tlsCrlIssuerCert = validateAndGetTlsCrlIssuerCert()
-        if (tlsCrlIssuerCert == null && isTlsCrlIssuerCertRequired()) {
-            System.err.println("""tlsCrlIssuerCert config does not match the root certificate issuer and nor is there any other certificate in the trust store with a matching issuer.
-                | Please make sure the config is correct or that the correct certificate for the CRL issuer is added to the node's trust store.
-                | The node will now terminate.""".trimMargin())
-            throw IllegalArgumentException("TLS CRL issuer certificate not found in the trust store.")
-        }
+
+        val tlsCrlIssuerCert = getTlsCrlIssuerCert()
 
         val keyPair = nodeKeyStore.loadOrCreateKeyPair(SELF_SIGNED_PRIVATE_KEY, privateKeyPassword)
 
@@ -102,6 +97,17 @@ open class NetworkRegistrationHelper(private val certificatesDirectory: Path,
         onSuccess(keyPair, certificates, tlsCrlIssuerCert?.subjectX500Principal?.toX500Name())
         // All done, clean up temp files.
         requestIdStore.deleteIfExists()
+    }
+
+    private fun getTlsCrlIssuerCert(): X509Certificate? {
+        val tlsCrlIssuerCert = validateAndGetTlsCrlIssuerCert()
+        if (tlsCrlIssuerCert == null && isTlsCrlIssuerCertRequired()) {
+            System.err.println("""tlsCrlIssuerCert config does not match the root certificate issuer and nor is there any other certificate in the trust store with a matching issuer.
+                    | Please make sure the config is correct or that the correct certificate for the CRL issuer is added to the node's trust store.
+                    | The node will now terminate.""".trimMargin())
+            throw IllegalArgumentException("TLS CRL issuer certificate not found in the trust store.")
+        }
+        return tlsCrlIssuerCert
     }
 
     private fun validateCertificates(registeringPublicKey: PublicKey, certificates: List<X509Certificate>) {
