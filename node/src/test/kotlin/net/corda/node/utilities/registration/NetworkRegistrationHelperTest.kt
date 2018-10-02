@@ -251,10 +251,7 @@ class NetworkRegistrationHelperTest {
         return when (certRole) {
             CertRole.NODE_CA -> NodeRegistrationHelper(config, certService, NodeRegistrationOption(config.certificatesDirectory / networkRootTrustStoreFileName, networkRootTrustStorePassword))
             CertRole.SERVICE_IDENTITY -> NetworkRegistrationHelper(
-                    config.certificatesDirectory,
-                    config.signingCertificateStore,
-                    config.myLegalName,
-                    config.emailAddress,
+                    config,
                     certService,
                     config.certificatesDirectory / networkRootTrustStoreFileName,
                     networkRootTrustStorePassword,

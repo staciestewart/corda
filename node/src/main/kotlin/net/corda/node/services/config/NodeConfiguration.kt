@@ -9,7 +9,9 @@ import net.corda.core.internal.div
 import net.corda.core.utilities.NetworkHostAndPort
 import net.corda.core.utilities.loggerFor
 import net.corda.core.utilities.seconds
+import net.corda.cryptoservice.CryptoService
 import net.corda.node.services.config.rpc.NodeRpcOptions
+import net.corda.node.services.keys.cryptoServices.BCCryptoService
 import net.corda.node.services.keys.cryptoServices.SupportedCryptoServices
 import net.corda.nodeapi.BrokerRpcSslOptions
 import net.corda.nodeapi.internal.config.FileBasedCertificateStoreSupplier
@@ -105,6 +107,14 @@ interface NodeConfiguration {
         const val cordappDirectoriesKey = "cordappDirectories"
 
         val defaultJmxReporterType = JmxReporterType.JOLOKIA
+    }
+
+    // TODO remove this when we use classname instead of cryptoServiceName enum.
+    fun makeCryptoService(): CryptoService {
+        return when(cryptoServiceName) {
+            SupportedCryptoServices.BC_SIMPLE -> BCCryptoService(this)
+            null -> BCCryptoService(this) // Pick default BC CryptoService when null.
+        }
     }
 }
 

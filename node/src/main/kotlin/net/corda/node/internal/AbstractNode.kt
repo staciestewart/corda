@@ -30,7 +30,6 @@ import net.corda.core.serialization.SerializationWhitelist
 import net.corda.core.serialization.SerializeAsToken
 import net.corda.core.serialization.SingletonSerializeAsToken
 import net.corda.core.utilities.*
-import net.corda.cryptoservice.CryptoService
 import net.corda.node.CordaClock
 import net.corda.node.VersionInfo
 import net.corda.node.cordapp.CordappLoader
@@ -45,6 +44,7 @@ import net.corda.node.services.ContractUpgradeHandler
 import net.corda.node.services.FinalityHandler
 import net.corda.node.services.NotaryChangeHandler
 import net.corda.node.services.api.*
+import net.corda.node.services.certs.KeystoreCertificateService
 import net.corda.node.services.config.*
 import net.corda.node.services.config.rpc.NodeRpcOptions
 import net.corda.node.services.config.shell.toShellConfig
@@ -52,8 +52,6 @@ import net.corda.node.services.events.NodeSchedulerService
 import net.corda.node.services.events.ScheduledActivityObserver
 import net.corda.node.services.identity.PersistentIdentityService
 import net.corda.node.services.keys.*
-import net.corda.node.services.keys.cryptoServices.BCCryptoService
-import net.corda.node.services.keys.cryptoServices.SupportedCryptoServices
 import net.corda.node.services.messaging.DeduplicationHandler
 import net.corda.node.services.messaging.MessagingService
 import net.corda.node.services.network.NetworkMapClient
@@ -164,7 +162,8 @@ abstract class AbstractNode<S>(val configuration: NodeConfiguration,
     val networkMapClient: NetworkMapClient? = configuration.networkServices?.let { NetworkMapClient(it.networkMapURL, versionInfo) }
     val attachments = NodeAttachmentService(metricRegistry, cacheFactory, database).tokenize()
     val cordappProvider = CordappProviderImpl(cordappLoader, CordappConfigFileProvider(), attachments).tokenize()
-    val cryptoService = makeCryptoService()
+    val cryptoService = configuration.makeCryptoService()
+    val certificateService = KeystoreCertificateService(configuration)
     @Suppress("LeakingThis")
     val keyManagementService = makeKeyManagementService(identityService).tokenize()
     val servicesForResolution = ServicesForResolutionImpl(identityService, attachments, cordappProvider, transactionStorage)
@@ -793,13 +792,6 @@ abstract class AbstractNode<S>(val configuration: NodeConfiguration,
                 log.info("Running core notary: ${it.javaClass.name}")
                 it.start()
             }
-        }
-    }
-
-    private fun makeCryptoService(): CryptoService? {
-        return when(configuration.cryptoServiceName) {
-            SupportedCryptoServices.BC_SIMPLE -> BCCryptoService(configuration)
-            null -> null
         }
     }
 

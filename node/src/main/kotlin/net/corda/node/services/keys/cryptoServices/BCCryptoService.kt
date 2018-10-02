@@ -15,33 +15,34 @@ import java.security.PublicKey
  */
 internal class BCCryptoService(private val nodeConf: NodeConfiguration) : CryptoService {
 
-    // TODO check if keystore exists.
+    // TODO check if keyStore exists.
     // TODO make it work with nodeConf.cryptoServiceConf (if it exists). I.e., read the signingCertificateStore
-    //      keystore file name from there.
-    private val keystore = nodeConf.signingCertificateStore.get().value
+    //      keyStore file name from there.
+    private val keyStore = nodeConf.signingCertificateStore.get(createNew = true).value
 
-    override fun generateKeyPair(alias: String, schemeNumberID: String): PublicKey {
+    override fun generateKeyPair(alias: String, schemeNumberID: Int): PublicKey {
         val keyPair = Crypto.generateKeyPair(Crypto.findSignatureScheme(schemeNumberID))
         // Store a self-signed certificate, as Keystore requires to store certificates instead of public keys.
+        // We could probably add a null cert, but we store a self-signed cert that will be used to retrieve the public key.
         val cert = X509Utilities.createSelfSignedCACertificate(nodeConf.myLegalName.x500Principal, keyPair)
-        keystore.setPrivateKey(alias, keyPair.private, listOf(cert))
+        keyStore.setPrivateKey(alias, keyPair.private, listOf(cert))
         return keyPair.public
     }
 
     override fun containsKey(alias: String): Boolean {
-        return keystore.contains(alias)
+        return keyStore.contains(alias)
     }
 
     override fun getPublicKey(alias: String): PublicKey {
-        return keystore.getPublicKey(alias)
+        return keyStore.getPublicKey(alias)
     }
 
     override fun sign(alias: String, data: ByteArray): ByteArray {
-        return Crypto.doSign(keystore.getPrivateKey(alias), data)
+        return Crypto.doSign(keyStore.getPrivateKey(alias), data)
     }
 
     override fun signer(alias: String): ContentSigner {
-        val privateKey = keystore.getPrivateKey(alias)
+        val privateKey = keyStore.getPrivateKey(alias)
         val signatureScheme = Crypto.findSignatureScheme(privateKey)
         return ContentSignerBuilder.build(signatureScheme, privateKey, Crypto.findProvider(signatureScheme.providerName), newSecureRandom())
     }
