@@ -13,7 +13,6 @@ import java.security.PublicKey
  * Basic implementation of a [CryptoService] that uses BouncyCastle for cryptographic operations
  * and a Java KeyStore to store private keys.
  */
-
 internal class BCCryptoService(private val nodeConf: NodeConfiguration) : CryptoService {
 
     // TODO check if keystore exists.
