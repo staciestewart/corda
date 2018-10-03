@@ -27,6 +27,7 @@ import org.junit.Test
 import java.math.BigInteger
 import java.security.KeyPair
 import java.security.KeyPairGenerator
+import java.security.cert.X509Certificate
 import java.util.*
 import kotlin.test.*
 
@@ -907,18 +908,23 @@ class CryptoUtilsTest {
     fun testBCSigner() {
         Crypto.registerProviders()
         val message = "Hello".toByteArray()
-        val (priv, pub) = Crypto.generateKeyPair()
-        val sigScheme = Crypto.findSignatureScheme(pub).signatureName
-        val contentSigner = PlatformContentSigner(priv)
-        // val contentSigner = JcaContentSignerBuilder(sigScheme).setProvider(cordaBouncyCastleProvider).build(priv)
-        contentSigner.write(message)
-        val sig = contentSigner.signature
+        val (priv, pub) = Crypto.generateKeyPair(Crypto.ECDSA_SECP256R1_SHA256)
+        val contentSignerForCert = PlatformContentSigner(priv)
+
+        val x509Cert = createCert(contentSignerForCert, KeyPair(pub, priv))
+        // Check if cert.verify() succeeds.
+        x509Cert.verify(pub)
+
+        // Each ContentSigner is used to sign one message, so we need another one;
+        // we don't want to use the same outputStream.
+        val contentSignerForMessage = PlatformContentSigner(priv)
+        contentSignerForMessage.write(message)
+        val sig = contentSignerForMessage.signature
         assertTrue { Crypto.doVerify(pub, sig, message) }
-        createCert(contentSigner, KeyPair(pub, priv))
     }
 
-    fun createCert(signer: ContentSigner, keyPair: KeyPair) {
-        val dname = X500Name("CN=Enclavelet")
+    private fun createCert(signer: ContentSigner, keyPair: KeyPair): X509Certificate {
+        val dname = X500Name("CN=TestEntity")
         val startDate = Calendar.getInstance().let { cal ->
             cal.time = Date()
             cal.add(Calendar.HOUR, -1)
@@ -937,7 +943,6 @@ class CryptoUtilsTest {
                 dname,
                 keyPair.public
         ).build(signer)
-        val x509 = JcaX509CertificateConverter().getCertificate(certificate)
-        print(x509)
+        return JcaX509CertificateConverter().getCertificate(certificate)
     }
 }
