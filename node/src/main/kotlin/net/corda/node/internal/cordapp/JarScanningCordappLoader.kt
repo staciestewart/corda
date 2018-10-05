@@ -27,6 +27,7 @@ import java.lang.reflect.Modifier
 import java.net.URL
 import java.net.URLClassLoader
 import java.nio.file.Path
+import java.security.cert.X509Certificate
 import java.util.*
 import java.util.jar.JarInputStream
 import kotlin.reflect.KClass
@@ -39,7 +40,8 @@ import kotlin.streams.toList
  */
 class JarScanningCordappLoader private constructor(private val cordappJarPaths: List<RestrictedURL>,
                                                    private val versionInfo: VersionInfo = VersionInfo.UNKNOWN,
-                                                   extraCordapps: List<CordappImpl>) : CordappLoaderTemplate() {
+                                                   extraCordapps: List<CordappImpl>,
+                                                   private val blacklistedCordappSigners: List<X509Certificate> = emptyList()) : CordappLoaderTemplate() {
 
     override val cordapps: List<CordappImpl> by lazy {
         loadCordapps() + extraCordapps
@@ -63,10 +65,10 @@ class JarScanningCordappLoader private constructor(private val cordappJarPaths: 
          *
          * @param corDappDirectories Directories used to scan for CorDapp JARs.
          */
-        fun fromDirectories(corDappDirectories: Iterable<Path>, versionInfo: VersionInfo = VersionInfo.UNKNOWN, extraCordapps: List<CordappImpl> = emptyList()): JarScanningCordappLoader {
+        fun fromDirectories(corDappDirectories: Iterable<Path>, versionInfo: VersionInfo = VersionInfo.UNKNOWN, extraCordapps: List<CordappImpl> = emptyList(), blacklistedCordappSigners: List<X509Certificate> = emptyList()): JarScanningCordappLoader {
             logger.info("Looking for CorDapps in ${corDappDirectories.distinct().joinToString(", ", "[", "]")}")
             val paths = corDappDirectories.distinct().flatMap(this::jarUrlsInDirectory).map { it.restricted() }
-            return JarScanningCordappLoader(paths, versionInfo, extraCordapps)
+            return JarScanningCordappLoader(paths, versionInfo, extraCordapps, blacklistedCordappSigners)
         }
 
         /**
@@ -103,6 +105,20 @@ class JarScanningCordappLoader private constructor(private val cordappJarPaths: 
                         false
                     } else {
                         true
+                    }
+                }
+                .filter {
+                    if (blacklistedCordappSigners.isEmpty()) {
+                        true //Nothing blacklisted, no need to check
+                    } else {
+                        val certificates = it.jarPath.openStream().let(::JarInputStream).use(JarSignatureCollector::collectCertificates)
+                        if (certificates.isEmpty() || (certificates - blacklistedCordappSigners).isNotEmpty())
+                            true // Cordapp is not signed or it is signed by at least one non-blacklisted certificate
+                        else {
+                            logger.warn("Not loading CorDapp ${it.info.shortName} (${it.info.vendor}) as it is signed by development key(s) only: " +
+                                    "${certificates.intersect(blacklistedCordappSigners).map { it.publicKey }}.")
+                            false
+                        }
                     }
                 }
         cordapps.forEach { CordappInfoResolver.register(it.cordappClasses, it.info) }
