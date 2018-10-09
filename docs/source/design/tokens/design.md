@@ -69,7 +69,7 @@ There is no equivelant `Token` abstract class because no assertions need to be m
 
 With the building blocks defined above, four base state types can be generated with the following combinations of interfaces and abstract classes:
 
-![](/Users/rogerwillis/Desktop/state hierarchy.png)The table below is a clearer illustration of what the model enables:
+![](state-hierarchy.png)The table below is a clearer illustration of what the model enables:
 
 |                  |           Token            |           Agreement            |
 | :--------------: | :------------------------: | :----------------------------: |
@@ -151,7 +151,7 @@ MEGA CORP is at liberty to define which ever properties and methods they deem ne
 
 The `TokenType` is linked to the `FungibleToken` state via the `TokenTypePointer`. The pointer includes the `linearId` of the `TokenType` and a implements a `resolve()` method. We cannot link the `TokenType` by `StateRef` as the `FungibleToken` would require updating each time the `TokenType` is updated! `Resolve()` allows developers to resolve the `linearId` to the `TokenType` state inside a flow. Conceptually, this is similar to the process where a `StateRef` is resolved to a `StateAndRef` .
 
-![](/Users/rogerwillis/Desktop/Screen Shot 2018-10-08 at 17.27.11.png)
+![](token-type-pointer.png)
 
 **Creating and issuing tokens**
 
@@ -160,7 +160,7 @@ The process of creating and issuing digital assets is now as follows:
 1. Create a a new `TokenType`. A `TokenType` is any state which implements the `TokenType` class. For now it is just a marker interface which implements `LinearState`.
 2. Issue a new `FungibleToken` for some amount of the newly created `TokenType`. The transaction which issues the `FungibleToken`s references the `TokenType` as follows:
 
-![](/Users/rogerwillis/Desktop/Screen Shot 2018-10-08 at 16.48.13.png)
+![](token-type-fungible-token.png)
 
 The flow for issuing new `FungibleToken`s of a particular `TokenType` now looks something like: 
 
@@ -195,4 +195,11 @@ When querying the vault for fungible tokens or performing coin selection, flow d
 
 **Making it easy to use TokenTypes**
 
-It is likely that a TokenType lookup service is required. When a token name is provided, e.g. "GBP", the service should return return all `TokenType` matches. To make things even easier, each `TokenType` should define a unique human readable name. 
+It is likely that a TokenType lookup service is required. When a token name is provided, e.g. "GBP", the service should return return all `TokenType` matches. To make things even easier, each `TokenType` should define a unique human readable name.
+
+### Thing taxonomy
+
+These tables explain how common financial instruments and things map to
+the four state types.
+
+![](taxonomy.png)
