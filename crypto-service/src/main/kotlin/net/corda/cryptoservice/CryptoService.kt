@@ -8,7 +8,7 @@ interface CryptoService {
     /** schemeNumberID is Corda specific. */
     fun generateKeyPair(alias: String, schemeNumberID: Int): PublicKey
     fun containsKey(alias: String): Boolean
-    fun getPublicKey(alias: String): PublicKey
+    fun getPublicKey(alias: String): PublicKey?
     fun sign(alias: String, data: ByteArray): ByteArray
     fun signer(alias: String): ContentSigner
 }

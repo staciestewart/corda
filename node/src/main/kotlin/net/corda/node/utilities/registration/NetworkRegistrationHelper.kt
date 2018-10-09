@@ -82,7 +82,8 @@ open class NetworkRegistrationHelper(
      */
     fun buildKeystore() {
         certificatesDirectory.createDirectories()
-        // In case CryptoService and Certificate share the same KeyStore.
+        // In case CryptoService and CertificateService share the same KeyStore (for backwards compatibility) we use
+        // the SELF_SIGNED_PRIVATE_KEY as progress indicator.
         if (certificateService.containsAlias(keyAlias) && !certificateService.containsAlias(SELF_SIGNED_PRIVATE_KEY)) {
             println("Certificate already exists, Corda node will now terminate...")
             return
@@ -90,24 +91,40 @@ open class NetworkRegistrationHelper(
 
         val tlsCrlIssuerCert = getTlsCrlIssuerCert()
 
-        // We use this as a progress indicator. When registration succeeds, we should delete this entry.
+        // We use this as progress indicator. When registration succeeds, we should delete this entry.
         certificateService.storeCertificates(SELF_SIGNED_PRIVATE_KEY, listOf(), NullKeys.NullPrivateKey)
-        val publicKey = cryptoService.generateKeyPair(keyAlias, X509Utilities.DEFAULT_TLS_SIGNATURE_SCHEME.schemeNumberID)
+        val publicKey = loadOrGenerateKeyPair()
 
         val requestId = submitOrResumeCertificateSigningRequest(publicKey, cryptoService.signer(keyAlias))
 
         val certificates = pollServerForCertificates(requestId)
         validateCertificates(publicKey, certificates)
 
-        // TODO !!! if it is the same keystore backing file, ensure you don't delete the original key,
-        //      i.e., when BCCryptoService is used !!!
-        certificateService.storeCertificates(keyAlias, certificates, NullKeys.NullPrivateKey)
+        storeCertificates(certificates)
         certificateService.deleteCertificates(SELF_SIGNED_PRIVATE_KEY)
         println("Private key '$keyAlias' and its certificate-chain stored successfully.")
 
         onSuccess(publicKey, cryptoService.signer(keyAlias), certificates, tlsCrlIssuerCert?.subjectX500Principal?.toX500Name())
         // All done, clean up temp files.
         requestIdStore.deleteIfExists()
+    }
+
+    private fun storeCertificates(certificates: List<X509Certificate>) {
+        // In case CryptoService and CertificateService share the same KeyStore, extract and store the key again.
+        val privateKey = if (certificateService.containsAlias(keyAlias)) {
+            certificateService.getPrivateKey(keyAlias)!!
+        } else {
+            NullKeys.NullPrivateKey
+        }
+        certificateService.storeCertificates(keyAlias, certificates, privateKey)
+    }
+
+    private fun loadOrGenerateKeyPair(): PublicKey {
+        return if (cryptoService.containsKey(keyAlias)) {
+            cryptoService.getPublicKey(keyAlias)!!
+        } else {
+            cryptoService.generateKeyPair(keyAlias, X509Utilities.DEFAULT_TLS_SIGNATURE_SCHEME.schemeNumberID)
+        }
     }
 
     private fun getTlsCrlIssuerCert(): X509Certificate? {

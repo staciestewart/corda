@@ -23,4 +23,8 @@ class KeystoreCertificateService(nodeConf: NodeConfiguration) : CertificateServi
     override fun deleteCertificates(alias: String) {
         keyStore.internal.deleteEntry(alias)
     }
+
+    override fun getPrivateKey(alias: String): PrivateKey? {
+        return keyStore.getPrivateKey(alias)
+    }
 }

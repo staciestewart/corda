@@ -9,4 +9,5 @@ interface CertificateService {
     fun getCertificates(alias: String): List<X509Certificate>
     fun containsAlias(alias: String): Boolean
     fun deleteCertificates(alias: String)
+    fun getPrivateKey(alias: String): PrivateKey?
 }
