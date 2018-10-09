@@ -80,7 +80,7 @@ class NodeVaultService(
 
     /**
      * Maintain a list of contract state interfaces to concrete types stored in the vault
-     * for usage in generic queries of type queryBy<LinearState> or queryBy<FungibleState<*>>
+     * for usage in generic queries of type queryBy<LinearState> or queryBy<`Tokens.kt`<*>>
      */
     private val contractStateTypeMappings = mutableMapOf<String, MutableSet<String>>()
 
@@ -278,7 +278,10 @@ class NodeVaultService(
                 val uuid = (Strand.currentStrand() as? FlowStateMachineImpl<*>)?.id?.uuid
                 val vaultUpdate = if (uuid != null) netUpdate.copy(flowId = uuid) else netUpdate
                 if (uuid != null) {
-                    val fungible = netUpdate.produced.filter { it.state.data is FungibleAsset<*> }
+                    val fungible = netUpdate.produced.filter { stateAndRef ->
+                        val state = stateAndRef.state.data
+                        state is FungibleAsset<*> || state is FungibleState<*>
+                    }
                     if (fungible.isNotEmpty()) {
                         val stateRefs = fungible.map { it.ref }.toNonEmptySet()
                         log.trace { "Reserving soft locks for flow id $uuid and states $stateRefs" }
@@ -395,6 +398,51 @@ class NodeVaultService(
         }
     }
 
+    @Suspendable
+    @Throws(StatesNotAvailableException::class)
+    override fun <T : FungibleState<U>, U : Any> selectFungibleStates(
+            lockId: UUID,
+            eligibleStatesQuery: QueryCriteria,
+            amount: Amount<U>,
+            contractStateType: Class<out T>
+    ): List<StateAndRef<T>> {
+        if (amount.quantity == 0L) {
+            return emptyList()
+        }
+
+        // Enrich QueryCriteria with additional default attributes (such as soft locks).
+        // We only want to return RELEVANT states here.
+        val sortAttribute = SortAttribute.Standard(Sort.CommonStateAttribute.STATE_REF)
+        val sorter = Sort(setOf(Sort.SortColumn(sortAttribute, Sort.Direction.ASC)))
+        val enrichedCriteria = QueryCriteria.VaultQueryCriteria(
+                contractStateTypes = setOf(contractStateType),
+                softLockingCondition = QueryCriteria.SoftLockingCondition(QueryCriteria.SoftLockingType.UNLOCKED_AND_SPECIFIED, listOf(lockId)),
+                relevancyStatus = Vault.RelevancyStatus.RELEVANT
+        )
+        val results = queryBy(contractStateType, enrichedCriteria.and(eligibleStatesQuery), sorter)
+
+        var claimedAmount = 0L
+        val claimedStates = mutableListOf<StateAndRef<T>>()
+        for (state in results.states) {
+            val issuedAssetToken = state.state.data.amount.token
+            // This iterates through ALL fungible states...
+            // TODO: Look to only return fungible states for a specific token type.
+            if (issuedAssetToken == amount.token) {
+                claimedStates += state
+                claimedAmount += state.state.data.amount.quantity
+                if (claimedAmount > amount.quantity) {
+                    break
+                }
+            }
+        }
+        if (claimedStates.isEmpty() || claimedAmount < amount.quantity) {
+            return emptyList()
+        }
+        softLockReserve(lockId, claimedStates.map { it.ref }.toNonEmptySet())
+        return claimedStates
+    }
+
+    @Deprecated("Use VaultService.selectFungibleStates() instead.")
     @Suspendable
     @Throws(StatesNotAvailableException::class)
     override fun <T : FungibleAsset<U>, U : Any> tryLockFungibleStatesForSpending(lockId: UUID,

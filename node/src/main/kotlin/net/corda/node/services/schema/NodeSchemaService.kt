@@ -81,7 +81,9 @@ class NodeSchemaService(private val extraSchemas: Set<MappedSchema> = emptySet()
         if (state is LinearState)
             schemas += VaultSchemaV1   // VaultLinearStates
         if (state is FungibleAsset<*>)
-            schemas += VaultSchemaV1   // VaultFungibleStates
+            schemas += VaultSchemaV1   // VaultFungibleAssetStates
+        if (state is FungibleState<*>)
+            schemas += VaultSchemaV1
 
         return schemas
     }

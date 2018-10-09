@@ -353,6 +353,13 @@ interface VaultService {
                                                                          amount: Amount<U>,
                                                                          contractStateType: Class<out T>): List<StateAndRef<T>>
 
+    @Suspendable
+    @Throws(StatesNotAvailableException::class)
+    fun <T : FungibleState<U>, U : Any> selectFungibleStates(lockId: UUID,
+                                                             eligibleStatesQuery: QueryCriteria,
+                                                             amount: Amount<U>,
+                                                             contractStateType: Class<out T>): List<StateAndRef<T>>
+
     // DOCSTART VaultQueryAPI
     /**
      * Generic vault query function which takes a [QueryCriteria] object to define filters,

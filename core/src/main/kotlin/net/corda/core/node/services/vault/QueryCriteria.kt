@@ -208,6 +208,22 @@ sealed class QueryCriteria : GenericQueryCriteria<QueryCriteria, IQueryCriteriaP
     }
 
     /**
+     * FungibleStateQueryCriteria: provides query by attributes defined in [VaultSchema.VaultFungibleStates]
+     */
+    data class FungibleStateQueryCriteria(
+            val participants: List<AbstractParty>? = null,
+            val quantity: ColumnPredicate<Long>? = null,
+            override val status: Vault.StateStatus = Vault.StateStatus.UNCONSUMED,
+            override val contractStateTypes: Set<Class<out ContractState>>? = null,
+            override val relevancyStatus: Vault.RelevancyStatus = Vault.RelevancyStatus.ALL
+    ) : CommonQueryCriteria() {
+        override fun visit(parser: IQueryCriteriaParser): Collection<Predicate> {
+            super.visit(parser)
+            return parser.parseCriteria(this)
+        }
+    }
+
+    /**
      * VaultCustomQueryCriteria: provides query by custom attributes defined in a contracts
      * [QueryableState] implementation.
      * (see Persistence documentation for more information)
@@ -282,6 +298,7 @@ interface BaseQueryCriteriaParser<Q: GenericQueryCriteria<Q, P>, in P: BaseQuery
 interface IQueryCriteriaParser : BaseQueryCriteriaParser<QueryCriteria, IQueryCriteriaParser, Sort> {
     fun parseCriteria(criteria: QueryCriteria.CommonQueryCriteria): Collection<Predicate>
     fun parseCriteria(criteria: QueryCriteria.FungibleAssetQueryCriteria): Collection<Predicate>
+    fun parseCriteria(criteria: QueryCriteria.FungibleStateQueryCriteria): Collection<Predicate>
     fun parseCriteria(criteria: QueryCriteria.LinearStateQueryCriteria): Collection<Predicate>
     fun <L : PersistentState> parseCriteria(criteria: QueryCriteria.VaultCustomQueryCriteria<L>): Collection<Predicate>
     fun parseCriteria(criteria: QueryCriteria.VaultQueryCriteria): Collection<Predicate>
