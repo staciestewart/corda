@@ -153,18 +153,6 @@ open class NetworkRegistrationHelper(
         println("Certificate signing request approved, storing private key with the certificate chain.")
     }
 
-    private fun storePrivateKeyWithCertificates(nodeKeystore: CertificateStore, keyPair: KeyPair, certificates: List<X509Certificate>, keyAlias: String, keyPassword: String) {
-        // Save private key and certificate chain to the key store.
-        with(nodeKeystore.value) {
-            setPrivateKey(keyAlias, keyPair.private, certificates, keyPassword = keyPassword)
-            // The key was temporarily stored as SELF_SIGNED_PRIVATE_KEY, but now that it's signed by the Doorman we
-            // can delete this old record.
-            internal.deleteEntry(SELF_SIGNED_PRIVATE_KEY)
-            save()
-        }
-        println("Private key '$keyAlias' and certificate stored in node signing keystore.")
-    }
-
     private fun CertificateStore.loadOrCreateKeyPair(alias: String, privateKeyPassword: String = password): KeyPair {
         // Create or load self signed keypair from the key store.
         // We use the self sign certificate to store the key temporarily in the keystore while waiting for the request approval.
