@@ -445,10 +445,12 @@ class NodeVaultService(
     @Deprecated("Use VaultService.selectFungibleStates() instead.")
     @Suspendable
     @Throws(StatesNotAvailableException::class)
-    override fun <T : FungibleAsset<U>, U : Any> tryLockFungibleStatesForSpending(lockId: UUID,
-                                                                                  eligibleStatesQuery: QueryCriteria,
-                                                                                  amount: Amount<U>,
-                                                                                  contractStateType: Class<out T>): List<StateAndRef<T>> {
+    override fun <T : FungibleAsset<U>, U : Any> tryLockFungibleStatesForSpending(
+            lockId: UUID,
+            eligibleStatesQuery: QueryCriteria,
+            amount: Amount<U>,
+            contractStateType: Class<out T>
+    ): List<StateAndRef<T>> {
         if (amount.quantity == 0L) {
             return emptyList()
         }

@@ -26,7 +26,7 @@ object VaultSchema
  */
 @CordaSerializable
 object VaultSchemaV1 : MappedSchema(schemaFamily = VaultSchema.javaClass, version = 1,
-        mappedTypes = listOf(VaultStates::class.java, VaultLinearStates::class.java, VaultFungibleStates::class.java, VaultTxnNote::class.java)) {
+        mappedTypes = listOf(VaultStates::class.java, VaultLinearStates::class.java, VaultFungibleAssetStates::class.java, VaultTxnNote::class.java)) {
 
     override val migrationResource = "vault-schema.changelog-master"
 
@@ -111,13 +111,13 @@ object VaultSchemaV1 : MappedSchema(schemaFamily = VaultSchema.javaClass, versio
     }
 
     @Entity
-    @Table(name = "vault_fungible_states")
-    class VaultFungibleStates(
+    @Table(name = "vault_fungible_asset_states")
+    class VaultFungibleAssetStates(
             /** [ContractState] attributes */
 
             /** X500Name of participant parties **/
             @ElementCollection
-            @CollectionTable(name = "vault_fungible_states_parts",
+            @CollectionTable(name = "vault_fungible_asset_states_parts",
                     joinColumns = [(JoinColumn(name = "output_index", referencedColumnName = "output_index")), (JoinColumn(name = "transaction_id", referencedColumnName = "transaction_id"))],
                     foreignKey = ForeignKey(name = "FK__fung_st_parts__fung_st"))
             @Column(name = "participants", nullable = true)
@@ -155,6 +155,33 @@ object VaultSchemaV1 : MappedSchema(schemaFamily = VaultSchema.javaClass, versio
                         issuer = _issuerParty,
                         issuerRef = _issuerRef.bytes,
                         participants = _participants.toMutableSet())
+    }
+
+    @Entity
+    @Table(name = "vault_fungible_states")
+    class VaultFungibleStates(
+            /** [ContractState] attributes */
+
+            /** X500Name of participant parties **/
+            @ElementCollection
+            @CollectionTable(
+                    name = "vault_fungible_states_parts",
+                    joinColumns = [(JoinColumn(name = "output_index", referencedColumnName = "output_index")), (JoinColumn(name = "transaction_id", referencedColumnName = "transaction_id"))],
+                    foreignKey = ForeignKey(name = "FK__fung_st_parts__fung_st"))
+            @Column(name = "participants", nullable = true)
+            var participants: MutableSet<AbstractParty>? = null,
+
+            /** [FungibleAsset] attributes
+             *
+             *  Note: the underlying Product being issued must be modelled into the
+             *  custom contract itself (eg. see currency in Cash contract state)
+             */
+
+            /** Amount attributes */
+            @Column(name = "quantity", nullable = false)
+            var quantity: Long
+    ) : PersistentState() {
+        constructor(_quantity: Long, _participants: List<AbstractParty>) : this(quantity = _quantity, participants = _participants.toMutableSet())
     }
 
     @Entity

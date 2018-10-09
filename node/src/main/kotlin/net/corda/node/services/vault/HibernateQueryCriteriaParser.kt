@@ -378,7 +378,7 @@ class HibernateQueryCriteriaParser(val contractStateType: Class<out ContractStat
         val predicateSet = mutableSetOf<Predicate>()
 
         // ensure we re-use any existing instance of the same root entity
-        val entityStateClass = VaultSchemaV1.VaultFungibleStates::class.java
+        val entityStateClass = VaultSchemaV1.VaultFungibleAssetStates::class.java
         val vaultFungibleStates =
                 rootEntities.getOrElse(entityStateClass) {
                     val entityRoot = criteriaQuery.from(entityStateClass)
@@ -415,7 +415,39 @@ class HibernateQueryCriteriaParser(val contractStateType: Class<out ContractStat
         // participants
         criteria.participants?.let {
             val participants = criteria.participants as List<AbstractParty>
-            val joinLinearStateToParty = vaultFungibleStates.joinSet<VaultSchemaV1.VaultFungibleStates, AbstractParty>("participants")
+            val joinLinearStateToParty = vaultFungibleStates.joinSet<VaultSchemaV1.VaultFungibleAssetStates, AbstractParty>("participants")
+            predicateSet.add(criteriaBuilder.and(joinLinearStateToParty.`in`(participants)))
+            criteriaQuery.distinct(true)
+        }
+        return predicateSet
+    }
+
+    override fun parseCriteria(criteria: QueryCriteria.FungibleStateQueryCriteria): Collection<Predicate> {
+        log.trace { "Parsing FungibleStateQueryCriteria: $criteria" }
+
+        val predicateSet = mutableSetOf<Predicate>()
+
+        // ensure we re-use any existing instance of the same root entity
+        val entityStateClass = VaultSchemaV1.VaultFungibleStates::class.java
+        val vaultFungibleStates =
+                rootEntities.getOrElse(entityStateClass) {
+                    val entityRoot = criteriaQuery.from(entityStateClass)
+                    rootEntities[entityStateClass] = entityRoot
+                    entityRoot
+                }
+
+        val joinPredicate = criteriaBuilder.equal(vaultStates.get<PersistentStateRef>("stateRef"), vaultFungibleStates.get<PersistentStateRef>("stateRef"))
+        predicateSet.add(joinPredicate)
+
+        // quantity
+        criteria.quantity?.let {
+            predicateSet.add(columnPredicateToPredicate(vaultFungibleStates.get<Long>("quantity"), it))
+        }
+
+        // participants
+        criteria.participants?.let {
+            val participants = criteria.participants as List<AbstractParty>
+            val joinLinearStateToParty = vaultFungibleStates.joinSet<VaultSchemaV1.VaultFungibleAssetStates, AbstractParty>("participants")
             predicateSet.add(criteriaBuilder.and(joinLinearStateToParty.`in`(participants)))
             criteriaQuery.distinct(true)
         }
@@ -646,7 +678,7 @@ class HibernateQueryCriteriaParser(val contractStateType: Class<out ContractStat
                 Triple(VaultSchemaV1.VaultLinearStates::class.java, sortAttribute.attributeName, null)
             }
             is Sort.FungibleStateAttribute -> {
-                Triple(VaultSchemaV1.VaultFungibleStates::class.java, sortAttribute.attributeName, null)
+                Triple(VaultSchemaV1.VaultFungibleAssetStates::class.java, sortAttribute.attributeName, null)
             }
             else -> throw VaultQueryException("Invalid sort attribute: $sortAttribute")
         }
