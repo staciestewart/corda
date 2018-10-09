@@ -289,7 +289,7 @@ class DriverDSLImpl(
                         config.corda,
                         HTTPNetworkRegistrationService(compatibilityZoneURL, versionInfo),
                         NodeRegistrationOption(rootTruststorePath, rootTruststorePassword)
-                ).buildKeystore()
+                ).generateKeysAndRegister()
                 config
             }
         } else {

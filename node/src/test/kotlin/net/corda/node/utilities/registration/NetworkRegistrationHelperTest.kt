@@ -85,7 +85,7 @@ class NetworkRegistrationHelperTest {
 
         val rootAndIntermediateCA = createDevIntermediateCaCertPath().also { saveNetworkTrustStore(CORDA_ROOT_CA to it.first.certificate) }
 
-        createRegistrationHelper(rootAndIntermediateCA = rootAndIntermediateCA).buildKeystore()
+        createRegistrationHelper(rootAndIntermediateCA = rootAndIntermediateCA).generateKeysAndRegister()
 
         val nodeKeystore = config.signingCertificateStore.get()
         val sslKeystore = config.p2pSslOptions.keyStore.get()
@@ -130,7 +130,7 @@ class NetworkRegistrationHelperTest {
         saveNetworkTrustStore(CORDA_ROOT_CA to nodeCaCertPath.last())
         val registrationHelper = createFixedResponseRegistrationHelper(nodeCaCertPath)
         assertThatExceptionOfType(CertificateRequestException::class.java)
-                .isThrownBy { registrationHelper.buildKeystore() }
+                .isThrownBy { registrationHelper.generateKeysAndRegister() }
                 .withMessageContaining(CertificateType.TLS.toString())
     }
 
@@ -141,7 +141,7 @@ class NetworkRegistrationHelperTest {
         saveNetworkTrustStore(CORDA_ROOT_CA to nodeCaCertPath.last())
         val registrationHelper = createFixedResponseRegistrationHelper(nodeCaCertPath)
         assertThatExceptionOfType(CertificateRequestException::class.java)
-                .isThrownBy { registrationHelper.buildKeystore() }
+                .isThrownBy { registrationHelper.generateKeysAndRegister() }
                 .withMessageContaining(invalidName.toString())
     }
 
@@ -156,7 +156,7 @@ class NetworkRegistrationHelperTest {
         }
 
         val registrationHelper = createRegistrationHelper(rootAndIntermediateCA = rootAndIntermediateCA)
-        registrationHelper.buildKeystore()
+        registrationHelper.generateKeysAndRegister()
         val trustStore = config.p2pSslOptions.trustStore.get()
         trustStore.run {
             assertTrue(contains(extraTrustedCertAlias))
@@ -174,7 +174,7 @@ class NetworkRegistrationHelperTest {
 
         val registrationHelper = createRegistrationHelper()
         assertThatThrownBy {
-            registrationHelper.buildKeystore()
+            registrationHelper.generateKeysAndRegister()
         }.isInstanceOf(CertPathValidatorException::class.java)
     }
 
@@ -186,7 +186,7 @@ class NetworkRegistrationHelperTest {
 
         val rootAndIntermediateCA = createDevIntermediateCaCertPath().also { saveNetworkTrustStore(CORDA_ROOT_CA to it.first.certificate) }
 
-        createRegistrationHelper(CertRole.SERVICE_IDENTITY, rootAndIntermediateCA).buildKeystore()
+        createRegistrationHelper(CertRole.SERVICE_IDENTITY, rootAndIntermediateCA).generateKeysAndRegister()
 
         val nodeKeystore = config.signingCertificateStore.get()
 

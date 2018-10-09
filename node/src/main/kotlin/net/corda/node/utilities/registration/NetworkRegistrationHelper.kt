@@ -70,17 +70,16 @@ open class NetworkRegistrationHelper(
     }
 
     /**
-     * Ensure the initial keystore for a node is set up.
+     * Ensure the initial keys and certificates for a node are set up.
      *
      * This checks the "config.certificatesDirectory" field for certificates required to connect to a Corda network.
      * If the certificates are not found, a PKCS #10 certification request will be submitted to the
      * Corda network permissioning server via [NetworkRegistrationService]. This process will enter a polling loop until
-     * the request has been approved, and then the certificate chain will be downloaded and stored in [KeyStore] reside in
-     * the certificates directory.
+     * the request has been approved, and then the certificate chain will be downloaded and stored in [certificateService].
      *
      * @throws CertificateRequestException if the certificate retrieved by doorman is invalid.
      */
-    fun buildKeystore() {
+    fun generateKeysAndRegister() {
         certificatesDirectory.createDirectories()
         // In case CryptoService and CertificateService share the same KeyStore (for backwards compatibility) we use
         // the SELF_SIGNED_PRIVATE_KEY as progress indicator.

@@ -391,7 +391,7 @@ open class NodeStartup : CordaCliWrapper("corda", "Runs a Corda Node") {
         println("*       Registering as a new participant with Corda network      *")
         println("*                                                                *")
         println("******************************************************************")
-        NodeRegistrationHelper(conf, HTTPNetworkRegistrationService(compatibilityZoneURL, versionInfo), nodeRegistrationConfig).buildKeystore()
+        NodeRegistrationHelper(conf, HTTPNetworkRegistrationService(compatibilityZoneURL, versionInfo), nodeRegistrationConfig).generateKeysAndRegister()
 
         // Minimal changes to make registration tool create node identity.
         // TODO: Move node identity generation logic from node to registration helper.
