@@ -8,7 +8,7 @@ import com.github.benmanes.caffeine.cache.LoadingCache
 import net.corda.core.serialization.SingletonSerializeAsToken
 import net.corda.node.services.config.MB
 import net.corda.node.services.config.NodeConfiguration
-import net.corda.node.utilities.NamedCacheFactory
+import net.corda.node.utilities.BindableNamedCacheFactory
 
 class TestingNamedCacheFactory private constructor(private val sizeOverride: Long, private val metricRegistry: MetricRegistry?, private val nodeConfiguration: NodeConfiguration?) : BindableNamedCacheFactory, SingletonSerializeAsToken() {
     constructor(sizeOverride: Long = 1024) : this(sizeOverride, null, null)
