@@ -289,24 +289,6 @@ class NodeRegistrationHelper(private val config: NodeConfiguration, certService:
         createTruststore(certificates.last())
     }
 
-    private fun createSSLKeystore(nodeCAKeyPair: KeyPair, certificates: List<X509Certificate>, tlsCertCrlIssuer: X500Name?) {
-        config.p2pSslOptions.keyStore.get(createNew = true).update {
-            println("Generating SSL certificate for node messaging service.")
-            val sslKeyPair = Crypto.generateKeyPair(X509Utilities.DEFAULT_TLS_SIGNATURE_SCHEME)
-            val sslCert = X509Utilities.createCertificate(
-                    CertificateType.TLS,
-                    certificates.first(),
-                    nodeCAKeyPair,
-                    config.myLegalName.x500Principal,
-                    sslKeyPair.public,
-                    crlDistPoint = config.tlsCertCrlDistPoint?.toString(),
-                    crlIssuer = tlsCertCrlIssuer)
-            logger.info("Generated TLS certificate: $sslCert")
-            setPrivateKey(CORDA_CLIENT_TLS, sslKeyPair.private, listOf(sslCert) + certificates)
-        }
-        println("SSL private key and certificate stored in ${config.p2pSslOptions.keyStore.path}.")
-    }
-
     private fun createSSLKeystore(publicKey: PublicKey, contentSigner: ContentSigner, certificates: List<X509Certificate>, tlsCertCrlIssuer: X500Name?) {
         config.p2pSslOptions.keyStore.get(createNew = true).update {
             println("Generating SSL certificate for node messaging service.")
@@ -329,7 +311,6 @@ class NodeRegistrationHelper(private val config: NodeConfiguration, certService:
         }
         println("SSL private key and certificate stored in ${config.p2pSslOptions.keyStore.path}.")
     }
-
 
     private fun createTruststore(rootCertificate: X509Certificate) {
         // Save root certificates to trust store.
