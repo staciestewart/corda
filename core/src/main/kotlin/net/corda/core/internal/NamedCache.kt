@@ -4,8 +4,6 @@ import com.github.benmanes.caffeine.cache.Cache
 import com.github.benmanes.caffeine.cache.CacheLoader
 import com.github.benmanes.caffeine.cache.Caffeine
 import com.github.benmanes.caffeine.cache.LoadingCache
-import net.corda.core.DeleteForDJVM
-import net.corda.core.KeepForDJVM
 
 /**
  * Allow extra functionality to be injected to our caches.
