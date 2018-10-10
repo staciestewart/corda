@@ -162,7 +162,6 @@ abstract class AbstractNode<S>(val configuration: NodeConfiguration,
     val attachments = NodeAttachmentService(metricRegistry, cacheFactory, database).tokenize()
     val cordappProvider = CordappProviderImpl(cordappLoader, CordappConfigFileProvider(), attachments).tokenize()
     val cryptoService = configuration.makeCryptoService()
-    val certificateStore = configuration.signingCertificateStore.get()
     @Suppress("LeakingThis")
     val keyManagementService = makeKeyManagementService(identityService).tokenize()
     val servicesForResolution = ServicesForResolutionImpl(identityService, attachments, cordappProvider, transactionStorage)
@@ -724,9 +723,9 @@ abstract class AbstractNode<S>(val configuration: NodeConfiguration,
         return try {
             // The following will throw IOException if key file not found or KeyStoreException if keystore password is incorrect.
             val sslKeyStore = configuration.p2pSslOptions.keyStore.get()
-            val identitiesKeyStore = configuration.signingCertificateStore.get()
+            val signingCertificateStore = configuration.signingCertificateStore.get()
             val trustStore = configuration.p2pSslOptions.trustStore.get()
-            AllCertificateStores(trustStore, sslKeyStore, identitiesKeyStore)
+            AllCertificateStores(trustStore, sslKeyStore, signingCertificateStore)
         } catch (e: KeyStoreException) {
             log.warn("At least one of the keystores or truststore passwords does not match configuration.")
             null
