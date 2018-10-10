@@ -389,13 +389,18 @@ open class NodeStartup : CordaCliWrapper("corda", "Runs a Corda Node") {
         val compatibilityZoneURL = conf.networkServices?.doormanURL ?: throw RuntimeException(
                 "compatibilityZoneURL or networkServices must be configured!")
 
-        println()
-        println("******************************************************************")
-        println("*                                                                *")
-        println("*       Registering as a new participant with Corda network      *")
-        println("*                                                                *")
-        println("******************************************************************")
-        NodeRegistrationHelper(conf, HTTPNetworkRegistrationService(compatibilityZoneURL, versionInfo), nodeRegistrationConfig).buildKeystore()
+        println("\n" +
+                "******************************************************************\n" +
+                "*                                                                *\n" +
+                "*       Registering as a new participant with Corda network      *\n" +
+                "*                                                                *\n" +
+                "******************************************************************\n")
+
+        NodeRegistrationHelper(conf,
+                HTTPNetworkRegistrationService(
+                        requireNotNull(conf.networkServices),
+                        versionInfo),
+                nodeRegistrationConfig).buildKeystore()
 
         // Minimal changes to make registration tool create node identity.
         // TODO: Move node identity generation logic from node to registration helper.
