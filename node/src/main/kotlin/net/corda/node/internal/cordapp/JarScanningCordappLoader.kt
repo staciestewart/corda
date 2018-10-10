@@ -65,10 +65,10 @@ class JarScanningCordappLoader private constructor(private val cordappJarPaths: 
          *
          * @param corDappDirectories Directories used to scan for CorDapp JARs.
          */
-        fun fromDirectories(corDappDirectories: Iterable<Path>, versionInfo: VersionInfo = VersionInfo.UNKNOWN, extraCordapps: List<CordappImpl> = emptyList(), blacklistedCordappSigners: List<X509Certificate> = emptyList()): JarScanningCordappLoader {
+        fun fromDirectories(corDappDirectories: Iterable<Path>, versionInfo: VersionInfo = VersionInfo.UNKNOWN, extraCordapps: List<CordappImpl> = emptyList(), blacklistedCerts: List<X509Certificate> = emptyList()): JarScanningCordappLoader {
             logger.info("Looking for CorDapps in ${corDappDirectories.distinct().joinToString(", ", "[", "]")}")
             val paths = corDappDirectories.distinct().flatMap(this::jarUrlsInDirectory).map { it.restricted() }
-            return JarScanningCordappLoader(paths, versionInfo, extraCordapps, blacklistedCordappSigners)
+            return JarScanningCordappLoader(paths, versionInfo, extraCordapps, blacklistedCerts)
         }
 
         /**
