@@ -9,6 +9,7 @@ import net.corda.node.NodeRegistrationOption
 import net.corda.node.services.config.NodeConfiguration
 import net.corda.nodeapi.internal.config.CertificateStore
 import net.corda.nodeapi.internal.crypto.CertificateType
+import net.corda.nodeapi.internal.crypto.DummyKeysAndCerts
 import net.corda.nodeapi.internal.crypto.X509KeyStore
 import net.corda.nodeapi.internal.crypto.X509Utilities
 import net.corda.nodeapi.internal.crypto.X509Utilities.CORDA_CLIENT_CA
@@ -88,8 +89,9 @@ open class NetworkRegistrationHelper(
 
         val tlsCrlIssuerCert = getTlsCrlIssuerCert()
 
-        // We use this as progress indicator. When registration succeeds, we should delete this entry.
-        certificateStore.value.setPrivateKey(SELF_SIGNED_PRIVATE_KEY, NullKeys.NullPrivateKey, listOf())
+        // We use this as progress indicator so we just store a dummy key and cert.
+        // When registration succeeds, this entry should be deleted.
+        certificateStore.value.setPrivateKey(SELF_SIGNED_PRIVATE_KEY, DummyKeysAndCerts.DUMMY_ECDSAR1_KEYPAIR.private, listOf(DummyKeysAndCerts.DUMMY_ECDSAR1_CERT))
         val publicKey = loadOrGenerateKeyPair()
 
         val requestId = submitOrResumeCertificateSigningRequest(publicKey, cryptoService.signer(keyAlias))
@@ -111,7 +113,7 @@ open class NetworkRegistrationHelper(
         val privateKey = if (certificateStore.contains(keyAlias)) {
             certificateStore.value.getPrivateKey(keyAlias)
         } else {
-            NullKeys.NullPrivateKey
+            DummyKeysAndCerts.DUMMY_ECDSAR1_KEYPAIR.private
         }
         certificateStore.value.setPrivateKey(keyAlias, privateKey, certificates)
     }
@@ -177,7 +179,6 @@ open class NetworkRegistrationHelper(
             // Save to the key store.
             with(value) {
                 setPrivateKey(alias, keyPair.private, listOf(selfSignCert), keyPassword = privateKeyPassword)
-                save()
             }
         }
         return query { getCertificateAndKeyPair(alias, privateKeyPassword) }.keyPair
