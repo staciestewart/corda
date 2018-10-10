@@ -6,7 +6,6 @@ import net.corda.core.identity.CordaX500Name
 import net.corda.core.internal.*
 import net.corda.core.utilities.contextLogger
 import net.corda.node.NodeRegistrationOption
-import net.corda.node.services.certs.KeystoreCertificateService
 import net.corda.node.services.config.NodeConfiguration
 import net.corda.nodeapi.internal.config.CertificateStore
 import net.corda.nodeapi.internal.crypto.CertificateType
@@ -25,7 +24,6 @@ import java.io.StringWriter
 import java.net.ConnectException
 import java.nio.file.Path
 import java.security.KeyPair
-import java.security.KeyStore
 import java.security.PublicKey
 import java.security.cert.X509Certificate
 import java.time.Duration
@@ -55,7 +53,7 @@ open class NetworkRegistrationHelper(
     private val myLegalName: CordaX500Name = config.myLegalName
     private val emailAddress: String = config.emailAddress
     private val cryptoService = config.makeCryptoService()
-    private val certificateService = KeystoreCertificateService(config)
+    private val certificateStore = config.signingCertificateStore.get(true)
     private val requestIdStore = certificatesDirectory / "certificate-request-id.txt"
     protected val rootTrustStore: X509KeyStore
     protected val rootCert: X509Certificate
@@ -75,15 +73,15 @@ open class NetworkRegistrationHelper(
      * This checks the "config.certificatesDirectory" field for certificates required to connect to a Corda network.
      * If the certificates are not found, a PKCS #10 certification request will be submitted to the
      * Corda network permissioning server via [NetworkRegistrationService]. This process will enter a polling loop until
-     * the request has been approved, and then the certificate chain will be downloaded and stored in [certificateService].
+     * the request has been approved, and then the certificate chain will be downloaded and stored in [certificateStore].
      *
      * @throws CertificateRequestException if the certificate retrieved by doorman is invalid.
      */
     fun generateKeysAndRegister() {
         certificatesDirectory.createDirectories()
-        // In case CryptoService and CertificateService share the same KeyStore (for backwards compatibility) we use
+        // In case CryptoService and CertificateStore share the same KeyStore (for backwards compatibility) we use
         // the SELF_SIGNED_PRIVATE_KEY as progress indicator.
-        if (certificateService.containsAlias(keyAlias) && !certificateService.containsAlias(SELF_SIGNED_PRIVATE_KEY)) {
+        if (certificateStore.contains(keyAlias) && !certificateStore.contains(SELF_SIGNED_PRIVATE_KEY)) {
             println("Certificate already exists, Corda node will now terminate...")
             return
         }
@@ -91,7 +89,7 @@ open class NetworkRegistrationHelper(
         val tlsCrlIssuerCert = getTlsCrlIssuerCert()
 
         // We use this as progress indicator. When registration succeeds, we should delete this entry.
-        certificateService.storeCertificates(SELF_SIGNED_PRIVATE_KEY, listOf(), NullKeys.NullPrivateKey)
+        certificateStore.value.setPrivateKey(SELF_SIGNED_PRIVATE_KEY, NullKeys.NullPrivateKey, listOf())
         val publicKey = loadOrGenerateKeyPair()
 
         val requestId = submitOrResumeCertificateSigningRequest(publicKey, cryptoService.signer(keyAlias))
@@ -100,7 +98,7 @@ open class NetworkRegistrationHelper(
         validateCertificates(publicKey, certificates)
 
         storeCertificates(certificates)
-        certificateService.deleteCertificates(SELF_SIGNED_PRIVATE_KEY)
+        certificateStore.value.internal.deleteEntry(SELF_SIGNED_PRIVATE_KEY)
         println("Private key '$keyAlias' and its certificate-chain stored successfully.")
 
         onSuccess(publicKey, cryptoService.signer(keyAlias), certificates, tlsCrlIssuerCert?.subjectX500Principal?.toX500Name())
@@ -109,13 +107,13 @@ open class NetworkRegistrationHelper(
     }
 
     private fun storeCertificates(certificates: List<X509Certificate>) {
-        // In case CryptoService and CertificateService share the same KeyStore, extract and store the key again.
-        val privateKey = if (certificateService.containsAlias(keyAlias)) {
-            certificateService.getPrivateKey(keyAlias)!!
+        // In case CryptoService and CertificateStore share the same KeyStore, extract and store the key again.
+        val privateKey = if (certificateStore.contains(keyAlias)) {
+            certificateStore.value.getPrivateKey(keyAlias)
         } else {
             NullKeys.NullPrivateKey
         }
-        certificateService.storeCertificates(keyAlias, certificates, privateKey)
+        certificateStore.value.setPrivateKey(keyAlias, privateKey, certificates)
     }
 
     private fun loadOrGenerateKeyPair(): PublicKey {

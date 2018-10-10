@@ -44,7 +44,6 @@ import net.corda.node.services.ContractUpgradeHandler
 import net.corda.node.services.FinalityHandler
 import net.corda.node.services.NotaryChangeHandler
 import net.corda.node.services.api.*
-import net.corda.node.services.certs.KeystoreCertificateService
 import net.corda.node.services.config.*
 import net.corda.node.services.config.rpc.NodeRpcOptions
 import net.corda.node.services.config.shell.toShellConfig
@@ -163,7 +162,7 @@ abstract class AbstractNode<S>(val configuration: NodeConfiguration,
     val attachments = NodeAttachmentService(metricRegistry, cacheFactory, database).tokenize()
     val cordappProvider = CordappProviderImpl(cordappLoader, CordappConfigFileProvider(), attachments).tokenize()
     val cryptoService = configuration.makeCryptoService()
-    val certificateService = KeystoreCertificateService(configuration)
+    val certificateStore = configuration.signingCertificateStore.get()
     @Suppress("LeakingThis")
     val keyManagementService = makeKeyManagementService(identityService).tokenize()
     val servicesForResolution = ServicesForResolutionImpl(identityService, attachments, cordappProvider, transactionStorage)

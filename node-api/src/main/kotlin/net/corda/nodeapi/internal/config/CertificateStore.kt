@@ -41,7 +41,6 @@ interface CertificateStore : Iterable<Pair<String, X509Certificate>> {
     }
 
     operator fun set(alias: String, certificate: X509Certificate) {
-
         update {
             internal.addOrReplaceCertificate(X509Utilities.CORDA_ROOT_CA, certificate)
         }
