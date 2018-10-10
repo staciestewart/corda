@@ -4,6 +4,7 @@ import co.paralleluniverse.fibers.Suspendable
 import net.corda.core.flows.*
 import net.corda.node.VersionInfo
 import net.corda.node.cordapp.CordappLoader
+import net.corda.nodeapi.internal.DEV_CERTIFICATES
 import net.corda.testing.node.internal.cordappsForPackages
 import net.corda.testing.node.internal.getTimestampAsDirectoryName
 import net.corda.testing.node.internal.packageInDirectory
@@ -158,6 +159,30 @@ class JarScanningCordappLoaderTest {
         val jar = JarScanningCordappLoaderTest::class.java.getResource("versions/min-2-target-3.jar")!!
         val loader = JarScanningCordappLoader.fromJarUrls(listOf(jar), VersionInfo.UNKNOWN.copy(platformVersion = 2))
         assertThat(loader.cordapps).hasSize(1)
+    }
+
+    @Test
+    fun `cordapp classloader loads app signed by allowed certificate`() {
+        val jar = JarScanningCordappLoaderTest::class.java.getResource("signed/signed-by-dev-key.jar")!!
+        val loader = JarScanningCordappLoader.fromJarUrls(listOf(jar), blacklistedCerts = emptyList())
+        // exclude the core cordapp
+        assertThat(loader.cordapps).hasSize(2)
+    }
+
+    @Test
+    fun `cordapp classloader does not load app signed by blacklisted certificate`() {
+        val jar = JarScanningCordappLoaderTest::class.java.getResource("signed/signed-by-dev-key.jar")!!
+        val loader = JarScanningCordappLoader.fromJarUrls(listOf(jar), blacklistedCerts = DEV_CERTIFICATES)
+        // exclude the core cordapp
+        assertThat(loader.cordapps).hasSize(1)
+    }
+
+    @Test
+    fun `cordapp classloader loads app signed by both allowed and non-blacklisted certificate`() {
+        val jar = JarScanningCordappLoaderTest::class.java.getResource("signed/signed-by-two-keys.jar")!!
+        val loader = JarScanningCordappLoader.fromJarUrls(listOf(jar), blacklistedCerts = DEV_CERTIFICATES)
+        // exclude the core cordapp
+        assertThat(loader.cordapps).hasSize(2)
     }
 
     private fun cordappLoaderForPackages(packages: Iterable<String>): CordappLoader {
