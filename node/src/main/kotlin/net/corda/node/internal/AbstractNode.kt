@@ -253,6 +253,7 @@ abstract class AbstractNode<S>(val configuration: NodeConfiguration,
 
     private fun initKeyStores(): X509Certificate {
         if (configuration.devMode) {
+            // TODO use CryptoService in devMode as well, at the moment we reuse the signingCertificateStore to generate dev keys.
             configuration.configureWithDevSSLCertificate()
         }
         return validateKeyStores()

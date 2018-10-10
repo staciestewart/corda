@@ -85,7 +85,7 @@ fun MutualSslConfiguration.configureDevKeyAndTrustStores(myLegalName: CordaX500N
         loadDevCaTrustStore().copyTo(trustStore.get(true))
     }
 
-    if (keyStore.getOptional() == null || signingCertificateStore.getOptional() == null) {
+    if (specifiedKeyStore == null || specifiedSigningStore == null) {
         val signingKeyStore = FileBasedCertificateStoreSupplier(signingCertificateStore.path, signingCertificateStore.password).get(true).also { it.registerDevSigningCertificates(myLegalName) }
 
         FileBasedCertificateStoreSupplier(keyStore.path, keyStore.password).get(true).also { it.registerDevP2pCertificates(myLegalName) }
