@@ -39,9 +39,6 @@ publishing {
         jarAndSources(MavenPublication) {
             from components.java
             artifactId 'notarydemo'
-
-            artifact sourceJar
-            artifact javadocJar
         }
     }
 }
