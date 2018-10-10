@@ -15,7 +15,7 @@ import net.corda.node.services.statemachine.StaffedFlowHospital.MedicalRecord.Ke
 import net.corda.testing.core.ALICE_NAME
 import net.corda.testing.core.BOB_NAME
 import net.corda.testing.core.singleIdentity
-import net.corda.testing.driver.TestCorDapp
+import net.corda.testing.TestCordapp
 import net.corda.testing.node.internal.InternalMockNetwork
 import net.corda.testing.node.internal.InternalMockNodeParameters
 import net.corda.testing.node.internal.TestStartedNode
@@ -38,7 +38,7 @@ class FinalityHandlerTest {
         // CorDapp. Bob's FinalityHandler will error when validating the tx.
         mockNet = InternalMockNetwork()
 
-        val assertCordapp = TestCorDapp.Factory.create("net.corda.finance.contracts.asset", "1.0").plusPackage("net.corda.finance.contracts.asset")
+        val assertCordapp = TestCordapp.Factory.create("net.corda.finance.contracts.asset", "1.0").plusPackage("net.corda.finance.contracts.asset")
         val alice = mockNet.createNode(InternalMockNodeParameters(legalName = ALICE_NAME, additionalCordapps = setOf(assertCordapp)))
 
         var bob = mockNet.createNode(InternalMockNodeParameters(legalName = BOB_NAME))

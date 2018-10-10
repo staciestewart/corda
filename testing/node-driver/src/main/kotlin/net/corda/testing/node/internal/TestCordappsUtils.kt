@@ -5,7 +5,7 @@ import net.corda.core.internal.createDirectories
 import net.corda.core.internal.deleteIfExists
 import net.corda.core.internal.outputStream
 import net.corda.node.internal.cordapp.createTestManifest
-import net.corda.testing.driver.TestCorDapp
+import net.corda.testing.TestCordapp
 import org.apache.commons.io.IOUtils
 import java.io.OutputStream
 import java.net.URI
@@ -13,7 +13,6 @@ import java.net.URL
 import java.nio.file.Path
 import java.nio.file.attribute.FileTime
 import java.time.Instant
-import java.util.*
 import java.util.jar.JarOutputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
@@ -56,11 +55,10 @@ internal fun Class<*>.jarEntryInfo(): JarEntryInfo {
 }
 
 /**
- * Packages some [TestCorDapp]s under a root [directory], each with it's own JAR.
+ * Packages some [TestCordapp]s under a root [directory], each with it's own JAR.
  * @param directory The parent directory in which CorDapp JAR will be created.
  */
-fun Iterable<TestCorDapp>.packageInDirectory(directory: Path) {
-
+fun Iterable<TestCordappImpl>.packageInDirectory(directory: Path) {
     directory.createDirectories()
     forEach { cordapp -> cordapp.packageAsJarInDirectory(directory) }
 }
@@ -78,19 +76,12 @@ fun allClassesForPackage(targetPackage: String): Set<Class<*>> {
 }
 
 /**
- * Maps each package to a [TestCorDapp] with resources found in that package.
+ * Creates a [TestCordapp] for each distinct package. This is useful for reducing the amount of CorDapp jar creation
+ * that occurs in our tests. If instead you need all the packages packaged into just one [TestCordapp] then use
+ * [TestCordapp.Factory.fromPackages].
  */
-fun cordappsForPackages(packages: Iterable<String>): Set<TestCorDapp> {
-
-    return simplifyScanPackages(packages).toSet().fold(emptySet()) { all, packageName -> all + testCorDapp(packageName) }
-}
-
-/**
- * Maps each package to a [TestCorDapp] with resources found in that package.
- */
-fun cordappsForPackages(firstPackage: String, vararg otherPackages: String): Set<TestCorDapp> {
-
-    return cordappsForPackages(setOf(*otherPackages) + firstPackage)
+fun cordappsFromPackages(vararg packageNames: String): List<TestCordapp> {
+    return simplifyScanPackages(packageNames.asList()).map { TestCordapp.Factory.fromPackages(it) }
 }
 
 fun getCallerClass(directCallerClass: KClass<*>): Class<*>? {
@@ -111,26 +102,14 @@ fun getCallerPackage(directCallerClass: KClass<*>): String? {
 }
 
 /**
- * Returns a [TestCorDapp] containing resources found in [packageName].
- */
-internal fun testCorDapp(packageName: String): TestCorDapp {
-
-    val uuid = UUID.randomUUID()
-    val name = "$packageName-$uuid"
-    val version = "$uuid"
-    return TestCorDapp.Factory.create(name, version).plusPackage(packageName)
-}
-
-/**
  * Squashes child packages if the parent is present. Example: ["com.foo", "com.foo.bar"] into just ["com.foo"].
  */
-fun simplifyScanPackages(scanPackages: Iterable<String>): List<String> {
-
-    return scanPackages.sorted().fold(emptyList()) { listSoFar, packageName ->
+fun simplifyScanPackages(scanPackages: Collection<String>): Set<String> {
+    return scanPackages.sorted().fold(emptySet()) { soFar, packageName ->
         when {
-            listSoFar.isEmpty() -> listOf(packageName)
-            packageName.startsWith(listSoFar.last()) -> listSoFar
-            else -> listSoFar + packageName
+            soFar.isEmpty() -> setOf(packageName)
+            packageName.startsWith("${soFar.last()}.") -> soFar
+            else -> soFar + packageName
         }
     }
 }
@@ -149,12 +128,12 @@ private fun Iterable<JarEntryInfo>.zip(outputStream: ZipOutputStream, willResour
     return entries.isNotEmpty()
 }
 
-private fun zip(outputStream: ZipOutputStream, allInfo: Iterable<JarEntryInfo>) {
 
+
+private fun zip(outputStream: ZipOutputStream, allInfo: Iterable<JarEntryInfo>) {
     val time = FileTime.from(Instant.EPOCH)
     val classLoader = Thread.currentThread().contextClassLoader
     allInfo.distinctBy { it.url }.sortedBy { it.url.toExternalForm() }.forEach { info ->
-
         try {
             val entry = ZipEntry(info.entryName).setCreationTime(time).setLastAccessTime(time).setLastModifiedTime(time)
             outputStream.putNextEntry(entry)
@@ -167,50 +146,8 @@ private fun zip(outputStream: ZipOutputStream, allInfo: Iterable<JarEntryInfo>) 
     }
 }
 
-/**
- * Represents a single resource to be added to a CorDapp JAR.
- */
-internal sealed class JarEntryInfo(val fullyQualifiedName: String, val url: URL) {
+fun TestCordappImpl.packageAsJar(file: Path) {
+    ClassGraph().whitelistPackages(*packages.toTypedArray()).enableAllInfo().scan().use {
 
-    abstract val entryName: String
-
-    /**
-     * Represents a class to be added to a CorDapp JAR.
-     */
-    class ClassJarEntryInfo(val clazz: Class<*>) : JarEntryInfo(clazz.name, clazz.classFileURL()) {
-
-        override val entryName = "${fullyQualifiedName.packageToJarPath()}$fileExtensionSeparator$classFileExtension"
-    }
-
-    /**
-     * Represents a resource file to be added to a CorDapp JAR.
-     */
-    class ResourceJarEntryInfo(fullyQualifiedName: String, url: URL) : JarEntryInfo(fullyQualifiedName, url) {
-
-        override val entryName: String
-            get() {
-                val extensionIndex = fullyQualifiedName.lastIndexOf(fileExtensionSeparator)
-                return "${fullyQualifiedName.substring(0 until extensionIndex).packageToJarPath()}${fullyQualifiedName.substring(extensionIndex)}"
-            }
-    }
-
-    operator fun component1(): String = fullyQualifiedName
-
-    operator fun component2(): URL = url
-
-    private companion object {
-
-        private const val classFileExtension = "class"
-        private const val fileExtensionSeparator = "."
-        private const val whitespace = " "
-        private const val whitespaceReplacement = "%20"
-
-        private fun Class<*>.classFileURL(): URL {
-
-            require(protectionDomain?.codeSource?.location != null) { "Invalid class $name for test CorDapp. Classes without protection domain cannot be referenced. This typically happens for Java / Kotlin types." }
-            return URI.create("${protectionDomain.codeSource.location}/${name.packageToJarPath()}$fileExtensionSeparator$classFileExtension".escaped()).toURL()
-        }
-
-        private fun String.escaped(): String = this.replace(whitespace, whitespaceReplacement)
     }
 }

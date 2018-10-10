@@ -52,7 +52,7 @@ import net.corda.nodeapi.internal.network.NetworkParametersCopier
 import net.corda.nodeapi.internal.persistence.CordaPersistence
 import net.corda.nodeapi.internal.persistence.DatabaseConfig
 import net.corda.testing.common.internal.testNetworkParameters
-import net.corda.testing.driver.TestCorDapp
+import net.corda.testing.TestCordapp
 import net.corda.testing.internal.rigorousMock
 import net.corda.testing.internal.setGlobalSerialization
 import net.corda.testing.internal.stubs.CertificateStoreStubs
@@ -89,7 +89,7 @@ data class InternalMockNodeParameters(
         val entropyRoot: BigInteger = BigInteger.valueOf(random63BitValue()),
         val configOverrides: (NodeConfiguration) -> Any? = {},
         val version: VersionInfo = MOCK_VERSION_INFO,
-        val additionalCordapps: Set<TestCorDapp>? = null) {
+        val additionalCordapps: Set<TestCordapp>? = null) {
     constructor(mockNodeParameters: MockNodeParameters) : this(
             mockNodeParameters.forcedID,
             mockNodeParameters.legalName,
@@ -148,7 +148,7 @@ open class InternalMockNetwork(defaultParameters: MockNetworkParameters = MockNe
                                val testDirectory: Path = Paths.get("build", getTimestampAsDirectoryName()),
                                val networkParameters: NetworkParameters = testNetworkParameters(),
                                val defaultFactory: (MockNodeArgs) -> MockNode = { args -> MockNode(args) },
-                               val cordappsForAllNodes: Set<TestCorDapp> = emptySet(),
+                               val cordappsForAllNodes: Set<TestCordapp> = emptySet(),
                                val autoVisibleNodes: Boolean = true) : AutoCloseable {
     init {
         // Apache SSHD for whatever reason registers a SFTP FileSystemProvider - which gets loaded by JimFS.
@@ -453,7 +453,7 @@ open class InternalMockNetwork(defaultParameters: MockNetworkParameters = MockNe
             parameters.configOverrides(it)
         }
 
-        val cordapps: Set<TestCorDapp> = parameters.additionalCordapps ?: emptySet()
+        val cordapps: Set<TestCordapp> = parameters.additionalCordapps ?: emptySet()
         val cordappDirectories = sharedCorDappsDirectories + TestCordappDirectories.cached(cordapps)
         doReturn(cordappDirectories).whenever(config).cordappDirectories
 

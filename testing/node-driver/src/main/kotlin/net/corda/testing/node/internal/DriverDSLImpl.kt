@@ -38,6 +38,7 @@ import net.corda.nodeapi.internal.crypto.X509Utilities
 import net.corda.nodeapi.internal.network.NetworkParametersCopier
 import net.corda.nodeapi.internal.network.NodeInfoFilesCopier
 import net.corda.serialization.internal.amqp.AbstractAMQPSerializationScheme
+import net.corda.testing.TestCordapp
 import net.corda.testing.core.ALICE_NAME
 import net.corda.testing.core.BOB_NAME
 import net.corda.testing.core.DUMMY_BANK_A_NAME
@@ -91,7 +92,7 @@ class DriverDSLImpl(
         val networkParameters: NetworkParameters,
         val notaryCustomOverrides: Map<String, Any?>,
         val inMemoryDB: Boolean,
-        val cordappsForAllNodes: Set<TestCorDapp>
+        val cordappsForAllNodes: Set<TestCordapp>
 ) : InternalDriverDSL {
 
     private var _executorService: ScheduledExecutorService? = null
@@ -194,7 +195,7 @@ class DriverDSLImpl(
             customOverrides: Map<String, Any?>,
             startInSameProcess: Boolean?,
             maximumHeapSize: String,
-            additionalCordapps: Set<TestCorDapp>,
+            additionalCordapps: Set<TestCordapp>,
             regenerateCordappsOnStart: Boolean
     ): CordaFuture<NodeHandle> {
         val p2pAddress = portAllocation.nextHostAndPort()
@@ -225,7 +226,7 @@ class DriverDSLImpl(
                                     startInSameProcess: Boolean? = null,
                                     maximumHeapSize: String = "512m",
                                     p2pAddress: NetworkHostAndPort = portAllocation.nextHostAndPort(),
-                                    additionalCordapps: Set<TestCorDapp> = emptySet(),
+                                    additionalCordapps: Set<TestCordapp> = emptySet(),
                                     regenerateCordappsOnStart: Boolean = false): CordaFuture<NodeHandle> {
         val rpcAddress = portAllocation.nextHostAndPort()
         val rpcAdminAddress = portAllocation.nextHostAndPort()
@@ -544,7 +545,7 @@ class DriverDSLImpl(
                                   startInProcess: Boolean?,
                                   maximumHeapSize: String,
                                   localNetworkMap: LocalNetworkMap?,
-                                  additionalCordapps: Set<TestCorDapp>,
+                                  additionalCordapps: Set<TestCordapp>,
                                   regenerateCordappsOnStart: Boolean = false): CordaFuture<NodeHandle> {
         val visibilityHandle = networkVisibilityController.register(specifiedConfig.corda.myLegalName)
         val baseDirectory = specifiedConfig.corda.baseDirectory.createDirectories()
@@ -687,8 +688,8 @@ class DriverDSLImpl(
 
         private fun <A> oneOf(array: Array<A>) = array[Random().nextInt(array.size)]
 
-        fun cordappsInCurrentAndAdditionalPackages(packagesToScan: Iterable<String> = emptySet()): Set<TestCorDapp> = cordappsForPackages(getCallerPackage() + packagesToScan)
-        fun cordappsInCurrentAndAdditionalPackages(firstPackage: String, vararg otherPackages: String): Set<TestCorDapp> = cordappsInCurrentAndAdditionalPackages(otherPackages.toList() + firstPackage)
+        fun cordappsInCurrentAndAdditionalPackages(packagesToScan: Iterable<String> = emptySet()): Set<TestCordapp> = cordappsForPackages(getCallerPackage() + packagesToScan)
+        fun cordappsInCurrentAndAdditionalPackages(firstPackage: String, vararg otherPackages: String): Set<TestCordapp> = cordappsInCurrentAndAdditionalPackages(otherPackages.toList() + firstPackage)
 
         private fun startInProcessNode(
                 executorService: ScheduledExecutorService,
@@ -1085,7 +1086,7 @@ fun <A> internalDriver(
         compatibilityZone: CompatibilityZoneParams? = null,
         notaryCustomOverrides: Map<String, Any?> = DriverParameters().notaryCustomOverrides,
         inMemoryDB: Boolean = DriverParameters().inMemoryDB,
-        cordappsForAllNodes: Set<TestCorDapp> = DriverParameters().cordappsForAllNodes(),
+        cordappsForAllNodes: Set<TestCordapp> = DriverParameters().cordappsForAllNodes(),
         dsl: DriverDSLImpl.() -> A
 ): A {
     return genericDriver(
@@ -1125,7 +1126,7 @@ private fun Config.toNodeOnly(): Config {
     return if (hasPath("webAddress")) withoutPath("webAddress").withoutPath("useHTTPS") else this
 }
 
-internal fun DriverParameters.cordappsForAllNodes(): Set<TestCorDapp> = cordappsForAllNodes
+internal fun DriverParameters.cordappsForAllNodes(): Set<TestCordapp> = cordappsForAllNodes
         ?: cordappsInCurrentAndAdditionalPackages(extraCordappPackagesToScan)
 
 fun DriverDSL.startNode(providedName: CordaX500Name, devMode: Boolean, parameters: NodeParameters = NodeParameters()): CordaFuture<NodeHandle> {
