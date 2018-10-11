@@ -190,13 +190,14 @@ open class NodeStartup : CordaCliWrapper("corda", "Runs a Corda Node") {
             println("Config:\n${rawConfig.root().render(ConfigRenderOptions.defaults())}")
         }
         val configuration = configurationResult.getOrThrow()
-        return if (cmdLineOptions.bootstrapRaftCluster) {
-            println("Bootstrapping raft cluster (starting up as seed node).")
+        // TODO: fix bootstrapping for Raft notary
+//        return if (cmdLineOptions.bootstrapRaftCluster) {
+//            println("Bootstrapping raft cluster (starting up as seed node).")
             // Ignore the configured clusterAddresses to make the node bootstrap a cluster instead of joining.
-            (configuration as NodeConfigurationImpl).copy(notary = configuration.notary?.copy(raft = configuration.notary?.raft?.copy(clusterAddresses = emptyList())))
-        } else {
-            configuration
-        }
+//            (configuration as NodeConfigurationImpl).copy(notary = configuration.notary?.copy(raft = configuration.notary?.raft?.copy(clusterAddresses = emptyList())))
+//        } else {
+          return  configuration
+//        }
     }
 
     private fun checkRegistrationMode(): Boolean {
@@ -408,7 +409,7 @@ open class NodeStartup : CordaCliWrapper("corda", "Runs a Corda Node") {
     protected open fun loadConfigFile(): Pair<Config, Try<NodeConfiguration>> = cmdLineOptions.loadConfig()
 
     protected open fun banJavaSerialisation(conf: NodeConfiguration) {
-        SerialFilter.install(if (conf.notary?.bftSMaRt != null) ::bftSMaRtSerialFilter else ::defaultSerialFilter)
+        SerialFilter.install(::bftSMaRtSerialFilter)
     }
 
     /** This filter is required for BFT-Smart to work as it only supports Java serialization. */
