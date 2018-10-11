@@ -92,6 +92,7 @@ open class NetworkRegistrationHelper(
         // We use this as progress indicator so we just store a dummy key and cert.
         // When registration succeeds, this entry should be deleted.
         certificateStore.value.setPrivateKey(SELF_SIGNED_PRIVATE_KEY, DummyKeysAndCerts.DUMMY_ECDSAR1_KEYPAIR.private, listOf(DummyKeysAndCerts.DUMMY_ECDSAR1_CERT))
+        certificateStore.value.save()
         val publicKey = loadOrGenerateKeyPair()
 
         val requestId = submitOrResumeCertificateSigningRequest(publicKey, cryptoService.signer(keyAlias))
@@ -99,8 +100,9 @@ open class NetworkRegistrationHelper(
         val certificates = pollServerForCertificates(requestId)
         validateCertificates(publicKey, certificates)
 
-        storeCertificates(certificates)
+        certificateStore.setCertPathOnly(keyAlias, certificates)
         certificateStore.value.internal.deleteEntry(SELF_SIGNED_PRIVATE_KEY)
+        certificateStore.value.save()
         println("Private key '$keyAlias' and its certificate-chain stored successfully.")
 
         onSuccess(publicKey, cryptoService.signer(keyAlias), certificates, tlsCrlIssuerCert?.subjectX500Principal?.toX500Name())
@@ -116,6 +118,7 @@ open class NetworkRegistrationHelper(
             DummyKeysAndCerts.DUMMY_ECDSAR1_KEYPAIR.private
         }
         certificateStore.value.setPrivateKey(keyAlias, privateKey, certificates)
+        certificateStore.value.save()
     }
 
     private fun loadOrGenerateKeyPair(): PublicKey {

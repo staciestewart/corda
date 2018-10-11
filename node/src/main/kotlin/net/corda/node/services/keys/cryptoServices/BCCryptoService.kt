@@ -18,7 +18,7 @@ internal class BCCryptoService(private val nodeConf: NodeConfiguration) : Crypto
     // TODO check if keyStore exists.
     // TODO make it work with nodeConf.cryptoServiceConf (if it exists). I.e., read the signingCertificateStore
     //      keyStore file name from there.
-    private val keyStore = nodeConf.signingCertificateStore.get(createNew = true).value
+    val keyStore = nodeConf.signingCertificateStore.get().value
 
     override fun generateKeyPair(alias: String, schemeNumberID: Int): PublicKey {
         val keyPair = Crypto.generateKeyPair(Crypto.findSignatureScheme(schemeNumberID))
@@ -26,6 +26,7 @@ internal class BCCryptoService(private val nodeConf: NodeConfiguration) : Crypto
         // We could probably add a null cert, but we store a self-signed cert that will be used to retrieve the public key.
         val cert = X509Utilities.createSelfSignedCACertificate(nodeConf.myLegalName.x500Principal, keyPair)
         keyStore.setPrivateKey(alias, keyPair.private, listOf(cert))
+        keyStore.save()
         return keyPair.public
     }
 
@@ -45,5 +46,9 @@ internal class BCCryptoService(private val nodeConf: NodeConfiguration) : Crypto
         val privateKey = keyStore.getPrivateKey(alias)
         val signatureScheme = Crypto.findSignatureScheme(privateKey)
         return ContentSignerBuilder.build(signatureScheme, privateKey, Crypto.findProvider(signatureScheme.providerName), newSecureRandom())
+    }
+
+    override fun enlist(): List<String> {
+        return keyStore.aliases().asSequence().toList()
     }
 }

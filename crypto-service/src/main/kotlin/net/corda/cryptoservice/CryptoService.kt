@@ -11,4 +11,5 @@ interface CryptoService {
     fun getPublicKey(alias: String): PublicKey?
     fun sign(alias: String, data: ByteArray): ByteArray
     fun signer(alias: String): ContentSigner
+    fun enlist(): List<String>
 }

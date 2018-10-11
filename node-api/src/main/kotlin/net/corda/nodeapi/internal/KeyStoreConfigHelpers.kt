@@ -29,6 +29,7 @@ fun CertificateStore.registerDevSigningCertificates(legalName: CordaX500Name,
     update {
         setPrivateKey(X509Utilities.CORDA_CLIENT_CA, devNodeCa.keyPair.private, listOf(devNodeCa.certificate, intermediateCa.certificate, rootCert))
     }
+    println("Testing " + this.value.aliases().asSequence().toList())
 }
 
 fun CertificateStore.registerDevP2pCertificates(legalName: CordaX500Name,
