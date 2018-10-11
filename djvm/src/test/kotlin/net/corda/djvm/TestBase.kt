@@ -39,9 +39,11 @@ abstract class TestBase {
         // We need at least these emitters to handle the Java API classes.
         val BASIC_EMITTERS: List<Emitter> = listOf(
             ArgumentUnwrapper(),
+            HandleExceptionUnwrapper(),
             ReturnTypeWrapper(),
             RewriteClassMethods(),
-            StringConstantWrapper()
+            StringConstantWrapper(),
+            ThrowExceptionWrapper()
         )
 
         val ALL_DEFINITION_PROVIDERS = Discovery.find<DefinitionProvider>()

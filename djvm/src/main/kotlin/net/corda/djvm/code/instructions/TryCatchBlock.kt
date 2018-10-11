@@ -10,5 +10,5 @@ import org.objectweb.asm.Label
  */
 class TryCatchBlock(
         val typeName: String,
-        val handler: Label
-) : NoOperationInstruction()
+        handler: Label
+) : TryBlock(handler)

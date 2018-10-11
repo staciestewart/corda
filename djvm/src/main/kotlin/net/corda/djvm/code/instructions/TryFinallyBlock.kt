@@ -6,8 +6,9 @@ import org.objectweb.asm.Label
  * Try-finally block.
  *
  * @property handler The handler for the finally-block.
+ * @property isMonitor Whether this handler has been created for a MONITOREXIT instruction.
  */
-@Suppress("MemberVisibilityCanBePrivate")
 class TryFinallyBlock(
-        val handler: Label
-) : NoOperationInstruction()
+        handler: Label,
+        val isMonitor: Boolean
+) : TryBlock(handler)

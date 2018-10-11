@@ -2,6 +2,7 @@ package net.corda.djvm.analysis
 
 import net.corda.djvm.code.EmitterModule
 import net.corda.djvm.code.Instruction
+import net.corda.djvm.code.emptyAsNull
 import net.corda.djvm.code.instructions.*
 import net.corda.djvm.messages.Message
 import net.corda.djvm.references.*
@@ -232,7 +233,7 @@ open class ClassAndMemberVisitor(
             analysisContext.classes.add(visitedClass)
             super.visit(
                     version, access, visitedClass.name, signature,
-                    visitedClass.superClass.nullIfEmpty(),
+                    visitedClass.superClass.emptyAsNull,
                     visitedClass.interfaces.toTypedArray()
             )
         }
@@ -475,7 +476,7 @@ open class ClassAndMemberVisitor(
             val block = if (type != null) {
                 TryCatchBlock(type, handler)
             } else {
-                TryFinallyBlock(handler)
+                TryFinallyBlock(handler, isMonitor = (start == handler))
             }
             visit(block) {
                 super.visitTryCatchBlock(start, end, handler, type)
@@ -577,10 +578,6 @@ open class ClassAndMemberVisitor(
          * The API version of ASM.
          */
         const val API_VERSION: Int = Opcodes.ASM6
-
-        private fun String.nullIfEmpty(): String? {
-            return if (this.isEmpty()) { null } else { this }
-        }
 
     }
 

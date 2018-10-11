@@ -33,7 +33,7 @@ open class ClassRewriter(
         logger.debug("Rewriting class {}...", reader.className)
         val writer = SandboxClassWriter(reader, classLoader)
         val analysisConfiguration = configuration.analysisConfiguration
-        val classRemapper = SandboxClassRemapper(InterfaceStitcher(writer, analysisConfiguration), analysisConfiguration)
+        val classRemapper = SandboxClassRemapper(SandboxStitcher(writer, analysisConfiguration), analysisConfiguration)
         val visitor = ClassMutator(
                 classRemapper,
                 analysisConfiguration,
@@ -50,9 +50,10 @@ open class ClassRewriter(
 
     /**
      * Extra visitor that is applied after [SandboxRemapper]. This "stitches" the original
-     * unmapped interface as a super-interface of the mapped version.
+     * unmapped interface as a super-interface of the mapped version, as well as adding
+     * any extra methods that are needed.
      */
-    private class InterfaceStitcher(parent: ClassVisitor, private val configuration: AnalysisConfiguration)
+    private class SandboxStitcher(parent: ClassVisitor, private val configuration: AnalysisConfiguration)
         : ClassVisitor(API_VERSION, parent)
     {
         private val extraMethods = mutableListOf<Member>()
@@ -63,12 +64,16 @@ open class ClassRewriter(
                 arrayOf(*(interfaces ?: emptyArray()), configuration.classResolver.reverse(className))
             } ?: interfaces
 
+            configuration.stitchedClasses[className]?.also { methods ->
+                extraMethods += methods
+            }
+
             super.visit(version, access, className, signature, superName, stitchedInterfaces)
         }
 
         override fun visitEnd() {
             for (method in extraMethods) {
-                method.apply {
+                with(method) {
                     visitMethod(access, memberName, signature, genericsDetails.emptyAsNull, exceptions.toTypedArray())?.also { mv ->
                         mv.visitCode()
                         EmitterModule(mv).writeByteCode(body)

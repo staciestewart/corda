@@ -1,7 +1,9 @@
 package net.corda.djvm.rewiring
 
 import net.corda.djvm.analysis.AnalysisConfiguration
+import net.corda.djvm.analysis.AnalysisConfiguration.Companion.SANDBOX_PREFIX
 import net.corda.djvm.analysis.ClassAndMemberVisitor.Companion.API_VERSION
+import net.corda.djvm.analysis.ExceptionResolver.Companion.DJVM_EXCEPTION_NAME
 import org.objectweb.asm.ClassVisitor
 import org.objectweb.asm.Label
 import org.objectweb.asm.MethodVisitor
@@ -35,9 +37,12 @@ class SandboxClassRemapper(cv: ClassVisitor, private val configuration: Analysis
             return mapperFor(method).visitMethodInsn(opcode, owner, name, descriptor, isInterface)
         }
 
-        override fun visitTryCatchBlock(start: Label, end: Label, handler: Label, type: String?) {
-            // Don't map caught exception names - these could be thrown by the JVM itself.
-            nonmapper.visitTryCatchBlock(start, end, handler, type)
+        override fun visitTryCatchBlock(start: Label, end: Label, handler: Label, exceptionType: String?) {
+            if (exceptionType != null && (configuration.isJvmException(SANDBOX_PREFIX + exceptionType) || configuration.isPinnedClass(exceptionType))) {
+                nonmapper.visitTryCatchBlock(start, end, handler, exceptionType)
+            } else {
+                super.visitTryCatchBlock(start, end, handler, exceptionType?.plus(DJVM_EXCEPTION_NAME))
+            }
         }
 
         override fun visitFieldInsn(opcode: Int, owner: String, name: String, descriptor: String) {
